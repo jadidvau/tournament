@@ -1,0 +1,35 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer Shield / Hex Crest -->
+    <path
+        android:pathData="M54,22 L80,34 L80,60 C80,75 54,86 54,86 C54,86 28,75 28,60 L28,34 Z"
+        android:strokeColor="#06b6d4"
+        android:strokeWidth="2.5"
+        android:fillColor="#1a083344" />
+    
+    <!-- Inner Cyber Soccer Ball Emblem -->
+    <path
+        android:pathData="M54,34 C64,34 72,42 72,52 C72,62 64,70 54,70 C44,70 36,62 36,52 C36,42 44,34 54,34 Z"
+        android:strokeColor="#22d3ee"
+        android:strokeWidth="2"
+        android:fillColor="#0e7490" />
+    
+    <!-- Central Pentagons / Panels -->
+    <path
+        android:pathData="M54,44 L60,49 L58,56 L50,56 L48,49 Z"
+        android:fillColor="#ffffff" />
+    <path
+        android:pathData="M54,44 L54,34 M60,49 L69,45 M58,56 L64,64 M50,56 L44,64 M48,49 L39,45"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="1.5" />
+        
+    <!-- Wings / Accents -->
+    <path
+        android:pathData="M32,48 L22,44 L25,58 L32,56 M76,48 L86,44 L83,58 L76,56"
+        android:strokeColor="#06b6d4"
+        android:strokeWidth="1.8"
+        android:fillColor="#22d3ee" />
+</vector>

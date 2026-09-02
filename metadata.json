@@ -1,0 +1,6 @@
+{
+  "name": "Dhaka eFootball Open",
+  "description": "Tournament registration, bKash/Nagad payment verification, and real-time 1v1 matchmaking bracket platform for eFootball players in Bangladesh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
