@@ -91,14 +91,14 @@ export const AdminApp: React.FC<AdminAppProps> = ({
         </div>
         <h2 className="font-esports text-xl font-black text-white">Admin Access Restricted</h2>
         <p className="text-xs text-slate-400">
-          Only tournament hosts with <code>role: 'admin'</code> in Firestore can access registration verification and bracket controls.
+          This dashboard is reserved exclusively for the organizer (<code>nogorigangjadid@gmail.com</code>). Regular players are locked to the Player View.
         </p>
-        <button
-          onClick={onElevateToAdmin}
-          className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs uppercase tracking-wider shadow-neon-purple transition-all"
+        <a
+          href="/player"
+          className="inline-block w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-neon transition-all"
         >
-          Switch to Admin Host Mode
-        </button>
+          Return to Player View
+        </a>
       </div>
     );
   }

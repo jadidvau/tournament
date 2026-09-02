@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
@@ -33,13 +35,17 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -85,6 +91,7 @@ import com.example.data.model.RegistrationStatus
 import com.example.data.model.TournamentInfo
 import com.example.data.model.TournamentMatch
 import com.example.data.model.TournamentRegistration
+import com.example.data.model.TournamentRules
 import com.example.data.model.UserProfile
 import com.example.ui.bracket.BracketViewer
 import com.example.ui.components.CyberButton
@@ -122,10 +129,12 @@ fun PlayerScreen(
     val registration by viewModel.userRegistration.collectAsState()
     val currentMatch by viewModel.userCurrentMatch.collectAsState()
     val selectedRound by viewModel.selectedRoundFilter.collectAsState()
+    val rules by viewModel.rules.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showProfileDialog by remember { mutableStateOf(false) }
     var showRulesDialog by remember { mutableStateOf(false) }
+    var showGoogleSignInDialog by remember { mutableStateOf(false) }
 
     val tabs = listOf("Overview & Pay", "My Match", "Full Bracket", "My Profile")
 
@@ -167,6 +176,7 @@ fun PlayerScreen(
         when (selectedTab) {
             0 -> OverviewAndPaymentTab(
                 tournament = tournament,
+                rules = rules,
                 registration = registration,
                 currentUser = currentUser,
                 onSubmitPayment = { method, trxId ->
@@ -191,15 +201,26 @@ fun PlayerScreen(
             3 -> PlayerProfileTab(
                 user = currentUser,
                 registration = registration,
-                onGoogleSignIn = { viewModel.signInWithGoogle() },
+                onGoogleSignIn = { showGoogleSignInDialog = true },
                 onLogout = { viewModel.logout() },
                 onEditProfile = { showProfileDialog = true }
             )
         }
     }
 
+    if (showGoogleSignInDialog) {
+        GoogleSignInChooserDialog(
+            onDismiss = { showGoogleSignInDialog = false },
+            onSelectAccount = { email, name ->
+                viewModel.signInWithGoogle(email = email, fullName = name)
+                showGoogleSignInDialog = false
+            }
+        )
+    }
+
     if (showRulesDialog) {
-        ExpandableRulesDialog(
+        CompactTwoColumnRulesDialog(
+            rules = rules,
             tournament = tournament,
             onDismiss = { showRulesDialog = false }
         )
@@ -220,6 +241,7 @@ fun PlayerScreen(
 @Composable
 fun OverviewAndPaymentTab(
     tournament: TournamentInfo,
+    rules: TournamentRules = TournamentRules(),
     registration: TournamentRegistration?,
     currentUser: UserProfile?,
     onSubmitPayment: (PaymentMethod, String) -> Unit,
@@ -335,41 +357,86 @@ fun OverviewAndPaymentTab(
                         color = NeonCyan.copy(alpha = 0.12f),
                         border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f))
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(14.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = NeonCyanBright,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "eFootball Tournament Rules",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = NeonCyanBright,
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                    Text(
-                                        text = "Match settings, squad limits, disconnections & conduct",
-                                        color = Slate400,
-                                        fontSize = 10.sp
-                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "eFootball Tournament Rules",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = "Dynamic sync with settings/rules",
+                                            color = NeonCyanBright,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
                                 }
+                                Text(
+                                    text = "VIEW RULES ›",
+                                    color = NeonCyanBright,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.sp
+                                )
                             }
-                            Text(
-                                text = "VIEW RULES ›",
-                                color = NeonCyanBright,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 11.sp
-                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Quick Badges Preview Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                RuleBadgePill(
+                                    label = rules.matchDuration,
+                                    color = NeonCyanBright,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                RuleBadgePill(
+                                    label = rules.extraTimePk,
+                                    color = StatusEmerald,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                RuleBadgePill(
+                                    label = rules.substitutions,
+                                    color = StatusPurple,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                RuleBadgePill(
+                                    label = rules.rematchRule,
+                                    color = StatusAmber,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                RuleBadgePill(
+                                    label = rules.walkoverGrace,
+                                    color = StatusRose,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -1163,9 +1230,56 @@ fun PlayerProfileTab(
                     Divider(color = Slate800)
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    ProfileFieldRow(label = "Google Account Email", value = if (user.email.isNotEmpty()) user.email else "nogorigangjadid@gmail.com")
                     ProfileFieldRow(label = "Phone Number", value = user.phoneNumber)
                     ProfileFieldRow(label = "eFootball In-Game ID", value = user.inGameId)
-                    ProfileFieldRow(label = "Account Role", value = user.role.name)
+                    ProfileFieldRow(label = "Security Role", value = if (user.role == com.example.data.model.UserRole.ADMIN) "ADMIN (Tournament Host)" else "PLAYER (Participant)")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (user.role == com.example.data.model.UserRole.ADMIN) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = StatusPurple.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, StatusPurple.copy(alpha = 0.6f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = StatusPurple, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "ORGANIZER VERIFIED • Use the top header switch to manage the tournament bracket & verify payments.",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Slate800.copy(alpha = 0.5f),
+                            border = BorderStroke(1.dp, Slate700),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = Slate400, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "PARTICIPANT ACCOUNT • Locked to Player View only.",
+                                    color = Slate400,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1384,218 +1498,246 @@ fun ProfileEditDialog(
 }
 
 @Composable
-fun ExpandableRulesDialog(
+fun CompactTwoColumnRulesDialog(
+    rules: TournamentRules,
     tournament: TournamentInfo,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var expandedSection by remember { mutableIntStateOf(1) }
-
-    val ruleSections = remember(tournament) {
-        listOf(
-            RuleSectionItem(
-                id = 1,
-                title = "Match Settings & Game Setup",
-                details = listOf(
-                    "Match Duration: ${tournament.matchDurationMinutes} Minutes standard full-time.",
-                    "Extra Time & PK: Must be set to ON for knockout rounds.",
-                    "Condition: Neutral / Excellent for fair competition.",
-                    "Substitutions: Up to 5 substitutions across 3 stoppage windows (excluding halftime)."
-                )
-            ),
-            RuleSectionItem(
-                id = 2,
-                title = "Squad & Fair Play Regulations",
-                details = listOf(
-                    "Team Type: Dream Team (or Authentic) with team strength cap as specified by administrators.",
-                    "Anti-Glitch Policy: Exploiting network glitches results in immediate disqualification.",
-                    "Pause Etiquette: Max 3 pauses per match. Only pause during out-of-bounds or keeper possession."
-                )
-            ),
-            RuleSectionItem(
-                id = 3,
-                title = "Network Disconnections & Lag Disputes",
-                details = listOf(
-                    "Disconnect before 15th min: Rematch permitted with mutual consent if score was 0-0.",
-                    "Disconnect after 15th min: Disconnecting player receives a 0-3 forfeit loss unless verified server crash.",
-                    "Mutual disconnect: Remaining match minutes played out in a second leg with scores aggregated."
-                )
-            ),
-            RuleSectionItem(
-                id = 4,
-                title = "Score Reporting & Match Evidence",
-                details = listOf(
-                    "Screenshot Proof: Both players must take a full-screen screenshot of final match results.",
-                    "Submission Window: Winning player must submit score within 15 minutes of completion.",
-                    "Disputes: In case of dispute, admin reviews screenshot timestamps and in-game IDs."
-                )
-            ),
-            RuleSectionItem(
-                id = 5,
-                title = "Punctuality, Conduct & Administration",
-                details = listOf(
-                    "Grace Period: Players must join the lobby within 10 minutes or forfeit as walkover (WO).",
-                    "Conduct: Toxicity, abusive language, or unsporting behavior leads to a permanent ban.",
-                    "Organizer & Lead Developer: JADID MOLLIK (WhatsApp: 01980000601). Administrator decisions are final."
-                )
-            )
-        )
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Tournament Rules",
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 17.sp
-                    )
-                    Text(
-                        text = "eFootball Competitive Regulations",
-                        color = Slate400,
-                        fontSize = 11.sp
-                    )
-                }
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Slate400)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = NeonCyanBright.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, NeonCyanBright),
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.SportsEsports,
+                                    contentDescription = null,
+                                    tint = NeonCyanBright,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "TOURNAMENT RULES",
+                                color = Color.White,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(StatusEmerald, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "settings/rules • Real-time Sync",
+                                    color = StatusEmerald,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Slate400)
+                    }
                 }
             }
         },
         text = {
             LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("rules_modal_dialog"),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Developer highlight banner in rules dialog
+                // Quick Badges Section
                 item {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Slate900,
-                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Slate900, RoundedCornerShape(10.dp))
+                            .border(BorderStroke(1.dp, NeonCyan.copy(alpha = 0.3f)), RoundedCornerShape(10.dp))
+                            .padding(10.dp)
                     ) {
+                        Text(
+                            text = "QUICK MATCH REGULATIONS",
+                            color = NeonCyanBright,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        // Row 1 Badges: 10 Mins, ET/PK ON, 5 Subs
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Column {
-                                Text(
-                                    text = "ORGANIZER & DEVELOPER",
-                                    color = NeonCyanBright,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                                Text(
-                                    text = "JADID MOLLIK",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "WhatsApp: 01980000601",
-                                    color = StatusEmerald,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            TextButton(
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/8801980000601"))
-                                    context.startActivity(intent)
-                                }
-                            ) {
-                                Text("CHAT", color = NeonCyanBright, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                            }
+                            RuleBadgePill(
+                                label = rules.matchDuration,
+                                color = NeonCyanBright,
+                                modifier = Modifier.weight(1f)
+                            )
+                            RuleBadgePill(
+                                label = rules.extraTimePk,
+                                color = StatusEmerald,
+                                modifier = Modifier.weight(1f)
+                            )
+                            RuleBadgePill(
+                                label = rules.substitutions,
+                                color = StatusPurple,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        // Row 2 Badges: 15-min rematch rule, 10-min walkover grace
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            RuleBadgePill(
+                                label = rules.rematchRule,
+                                color = StatusAmber,
+                                modifier = Modifier.weight(1f)
+                            )
+                            RuleBadgePill(
+                                label = rules.walkoverGrace,
+                                color = StatusRose,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
 
-                // Accordion items
-                items(ruleSections.size) { index ->
-                    val section = ruleSections[index]
-                    val isExpanded = expandedSection == section.id
-
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isExpanded) Slate900 else Slate900.copy(alpha = 0.6f),
-                        border = BorderStroke(1.dp, if (isExpanded) NeonCyan.copy(alpha = 0.5f) else Slate800),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable {
-                                expandedSection = if (isExpanded) 0 else section.id
-                            }
+                // Compact 2-Column Card Layout
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = if (isExpanded) NeonCyanBright else Slate800,
-                                        modifier = Modifier.size(22.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text(
-                                                text = "${section.id}",
-                                                color = if (isExpanded) Slate950 else Slate400,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Black
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = section.title,
-                                        color = if (isExpanded) Color.White else Slate200,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                                Text(
-                                    text = if (isExpanded) "−" else "+",
-                                    color = if (isExpanded) NeonCyanBright else Slate400,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 16.sp
-                                )
-                            }
+                        // Left Column
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            RuleCard(
+                                title = "Match Setup",
+                                badge = rules.matchDuration,
+                                badgeColor = NeonCyanBright,
+                                icon = Icons.Default.Timer,
+                                details = rules.matchSettingsDetails
+                            )
 
-                            AnimatedVisibility(visible = isExpanded) {
-                                Column(
-                                    modifier = Modifier.padding(top = 10.dp, start = 32.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    section.details.forEach { detail ->
-                                        Row(modifier = Modifier.fillMaxWidth()) {
-                                            Text(
-                                                text = "• ",
-                                                color = NeonCyanBright,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 11.sp
+                            RuleCard(
+                                title = "Squad & Fair Play",
+                                badge = rules.substitutions,
+                                badgeColor = StatusPurple,
+                                icon = Icons.Default.Shield,
+                                details = rules.squadFairPlayDetails
+                            )
+
+                            RuleCard(
+                                title = "Disconnects & Lag",
+                                badge = rules.rematchRule,
+                                badgeColor = StatusAmber,
+                                icon = Icons.Default.Phone,
+                                details = rules.networkDisputesDetails
+                            )
+                        }
+
+                        // Right Column
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            RuleCard(
+                                title = "Punctuality",
+                                badge = rules.walkoverGrace,
+                                badgeColor = StatusRose,
+                                icon = Icons.Default.HourglassEmpty,
+                                details = rules.punctualityConductDetails
+                            )
+
+                            RuleCard(
+                                title = "Score Proof",
+                                badge = "Screenshots",
+                                badgeColor = StatusEmerald,
+                                icon = Icons.Default.CheckCircle,
+                                details = rules.scoreReportingDetails
+                            )
+
+                            // Organizer Contact Card
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Slate900,
+                                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "Arbitration",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                        Icon(
+                                            Icons.Default.AdminPanelSettings,
+                                            contentDescription = null,
+                                            tint = NeonCyanBright,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = rules.organizerContact,
+                                        color = StatusEmerald,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Button(
+                                        onClick = {
+                                            val intent = Intent(
+                                                Intent.ACTION_VIEW,
+                                                Uri.parse("https://wa.me/8801980000601")
                                             )
-                                            Text(
-                                                text = detail,
-                                                color = Slate400,
-                                                fontSize = 11.sp,
-                                                lineHeight = 15.sp
-                                            )
-                                        }
+                                            context.startActivity(intent)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = StatusEmerald.copy(alpha = 0.2f),
+                                            contentColor = StatusEmerald
+                                        ),
+                                        shape = RoundedCornerShape(6.dp),
+                                        contentPadding = PaddingValues(vertical = 4.dp, horizontal = 8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "WhatsApp Chat",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 }
                             }
@@ -1615,9 +1757,351 @@ fun ExpandableRulesDialog(
     )
 }
 
-private data class RuleSectionItem(
-    val id: Int,
-    val title: String,
-    val details: List<String>
-)
+@Composable
+fun RuleBadgePill(
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = color.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f)),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier.padding(vertical = 5.dp, horizontal = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = color,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+fun RuleCard(
+    title: String,
+    badge: String,
+    badgeColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    details: String
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = Slate900,
+        border = BorderStroke(1.dp, Slate800),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = badgeColor,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = badgeColor.copy(alpha = 0.15f),
+                modifier = Modifier.padding(bottom = 4.dp)
+            ) {
+                Text(
+                    text = badge,
+                    color = badgeColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            Text(
+                text = details,
+                color = Slate400,
+                fontSize = 9.5.sp,
+                lineHeight = 13.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun ExpandableRulesDialog(
+    tournament: TournamentInfo,
+    onDismiss: () -> Unit
+) {
+    CompactTwoColumnRulesDialog(
+        rules = TournamentRules(),
+        tournament = tournament,
+        onDismiss = onDismiss
+    )
+}
+
+@Composable
+fun GoogleSignInChooserDialog(
+    onDismiss: () -> Unit,
+    onSelectAccount: (email: String, fullName: String) -> Unit
+) {
+    var customEmail by remember { mutableStateOf("") }
+    var showCustomInput by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "G",
+                    color = Color(0xFF4285F4),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 24.sp
+                )
+                Column {
+                    Text(
+                        text = "Sign in with Google",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "Dhaka eFootball Open Championship",
+                        color = Slate400,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Select an account to verify role-based access:",
+                    color = Slate400,
+                    fontSize = 12.sp
+                )
+
+                // 1. Organizer Account (ADMIN)
+                Surface(
+                    onClick = {
+                        onSelectAccount("nogorigangjadid@gmail.com", "Jadid Mollik")
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = StatusPurple.copy(alpha = 0.15f),
+                    border = BorderStroke(1.5.dp, StatusPurple.copy(alpha = 0.8f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("account_item_organizer")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = StatusPurple.copy(alpha = 0.3f),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.AdminPanelSettings,
+                                    contentDescription = null,
+                                    tint = StatusPurple,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Jadid Mollik",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = StatusPurple
+                                ) {
+                                    Text(
+                                        text = "ADMIN",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 9.sp,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "nogorigangjadid@gmail.com",
+                                color = Slate400,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Organizer • Header switch enabled for Admin Dashboard",
+                                color = StatusPurple,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                // 2. Regular Player Account (PLAYER)
+                Surface(
+                    onClick = {
+                        onSelectAccount("tanvir.player@gmail.com", "Tanvir Hossain")
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Slate800.copy(alpha = 0.6f),
+                    border = BorderStroke(1.dp, Slate700),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("account_item_player")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = NeonCyan.copy(alpha = 0.2f),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = NeonCyanBright,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Tanvir Hossain",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Slate700
+                                ) {
+                                    Text(
+                                        text = "PLAYER",
+                                        color = Slate400,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 9.sp,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "tanvir.player@gmail.com",
+                                color = Slate400,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Standard Participant • Locked to Player View only",
+                                color = Slate400,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // 3. Custom Google Email Option
+                if (!showCustomInput) {
+                    TextButton(
+                        onClick = { showCustomInput = true },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = "Or enter custom email to test...",
+                            color = NeonCyanBright,
+                            fontSize = 12.sp
+                        )
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = customEmail,
+                        onValueChange = { customEmail = it },
+                        label = { Text("Google Email", color = Slate400) },
+                        placeholder = { Text("e.g. user@gmail.com", color = Slate600) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = NeonCyanBright,
+                            unfocusedBorderColor = Slate700,
+                            focusedContainerColor = Slate900,
+                            unfocusedContainerColor = Slate900
+                        )
+                    )
+
+                    CyberButton(
+                        text = "Sign In with This Account",
+                        onClick = {
+                            if (customEmail.isNotBlank()) {
+                                onSelectAccount(customEmail.trim(), "Player (${customEmail.substringBefore('@')})")
+                            }
+                        },
+                        enabled = customEmail.contains("@"),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Slate400)
+            }
+        },
+        containerColor = Slate900,
+        shape = RoundedCornerShape(16.dp)
+    )
+}
 

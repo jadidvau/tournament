@@ -34,31 +34,39 @@ export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogout, onGoogleS
 
         {/* Dual Portal Switcher & User Profile */}
         <div className="flex items-center space-x-3">
-          {/* Public Player App Route */}
-          <Link
-            to="/player"
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-              isPlayerApp
-                ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-900/50 border border-slate-800'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            Player App
-          </Link>
-
-          {/* Admin Host App Route */}
-          <Link
-            to="/admin"
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-              isAdminApp
-                ? 'bg-purple-500/10 border border-purple-500/30 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-900/50 border border-slate-800'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            Admin App
-          </Link>
+          {currentUser?.role === 'admin' ? (
+            /* Admin Header Switch: Toggle between Player View and Admin Dashboard */
+            <div className="flex items-center bg-slate-900/90 p-1 rounded-full border border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+              <Link
+                to="/player"
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  isPlayerApp
+                    ? 'bg-cyan-500 text-slate-950 font-black shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                Player View
+              </Link>
+              <Link
+                to="/admin"
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  isAdminApp
+                    ? 'bg-purple-600 text-white font-black shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5" />
+                Admin Dashboard
+              </Link>
+            </div>
+          ) : (
+            /* Regular users locked to Player View */
+            <div className="px-3 py-1.5 rounded-full text-xs font-black bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.15)]">
+              <User className="w-3.5 h-3.5" />
+              PLAYER VIEW
+            </div>
+          )}
 
           {/* Google Sign In Button when logged out */}
           {!currentUser ? (

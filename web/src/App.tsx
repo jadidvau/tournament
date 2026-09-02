@@ -137,16 +137,18 @@ export function App() {
     setCurrentUser(null);
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = (emailChoice?: string) => {
+    const email = (emailChoice || 'nogorigangjadid@gmail.com').trim();
+    const isAdmin = email.toLowerCase() === 'nogorigangjadid@gmail.com';
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const googleUser: UserProfile = {
       uid: `usr_ggl_${randomSuffix}`,
-      fullName: 'Jadid Nogorigang',
-      email: 'nogorigangjadid@gmail.com',
-      phoneNumber: '+8801980000601',
-      inGameId: '772-990-123',
-      inGameUsername: 'Nogorigang_Jadid',
-      role: 'player',
+      fullName: isAdmin ? 'Jadid Mollik (Organizer)' : 'Tanvir Hossain',
+      email: email,
+      phoneNumber: isAdmin ? '+8801980000601' : '+8801904031478',
+      inGameId: isAdmin ? 'ADMIN-HOST-01' : '549-218-093',
+      inGameUsername: isAdmin ? 'Nogorigang_Admin' : 'TanvirDhaka99',
+      role: isAdmin ? 'admin' : 'player',
       createdAt: Date.now()
     };
     setCurrentUser(googleUser);

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -307,8 +308,9 @@ fun PaymentNumberCard(
 fun EsportsHeader(
     title: String,
     subtitle: String,
-    currentRole: UserRole,
-    onSwitchRole: (UserRole) -> Unit,
+    isAdminUser: Boolean,
+    currentView: String, // "player" or "admin"
+    onToggleView: (String) -> Unit,
     notificationCount: Int,
     onOpenNotifications: () -> Unit,
     modifier: Modifier = Modifier
@@ -381,36 +383,102 @@ fun EsportsHeader(
                     }
                 }
 
-                // Header actions: Role Toggle Badge & Notification Icon
+                // Header actions: Admin View Toggle (for Admin) OR Locked Player Badge (for regular users)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Portal Switcher Chip
-                    Surface(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .clickable {
-                                onSwitchRole(if (currentRole == UserRole.ADMIN) UserRole.PLAYER else UserRole.ADMIN)
-                            }
-                            .testTag("role_switch_toggle"),
-                        color = if (currentRole == UserRole.ADMIN) StatusPurple.copy(alpha = 0.25f) else CyanSurface,
-                        border = BorderStroke(1.dp, if (currentRole == UserRole.ADMIN) StatusPurple else NeonCyan)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    if (isAdminUser) {
+                        // Admin Header Switch: Toggle between Player View and Admin Dashboard
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Slate900,
+                            border = BorderStroke(1.dp, if (currentView == "admin") StatusPurple else NeonCyan),
+                            modifier = Modifier.testTag("admin_header_switch")
                         ) {
-                            Icon(
-                                imageVector = if (currentRole == UserRole.ADMIN) Icons.Default.AdminPanelSettings else Icons.Default.Person,
-                                contentDescription = null,
-                                tint = if (currentRole == UserRole.ADMIN) StatusPurple else NeonCyanBright,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (currentRole == UserRole.ADMIN) "ADMIN HOST" else "PLAYER APP",
-                                color = if (currentRole == UserRole.ADMIN) StatusPurple else NeonCyanBright,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier.padding(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Player View Button
+                                Surface(
+                                    onClick = { onToggleView("player") },
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = if (currentView == "player") CyanDark else Color.Transparent,
+                                    modifier = Modifier.testTag("toggle_player_view_btn")
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = if (currentView == "player") NeonCyanBright else Slate400,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = "Player",
+                                            color = if (currentView == "player") Color.White else Slate400,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                // Admin Dashboard Button
+                                Surface(
+                                    onClick = { onToggleView("admin") },
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = if (currentView == "admin") StatusPurple.copy(alpha = 0.5f) else Color.Transparent,
+                                    modifier = Modifier.testTag("toggle_admin_view_btn")
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AdminPanelSettings,
+                                            contentDescription = null,
+                                            tint = if (currentView == "admin") StatusPurple else Slate400,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = "Admin",
+                                            color = if (currentView == "admin") Color.White else Slate400,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Regular user locked to Player View
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = CyanSurface,
+                            border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                            modifier = Modifier.testTag("player_locked_badge")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SportsEsports,
+                                    contentDescription = null,
+                                    tint = NeonCyanBright,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "PLAYER VIEW",
+                                    color = NeonCyanBright,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
                         }
                     }
 

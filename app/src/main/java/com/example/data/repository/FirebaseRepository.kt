@@ -5,11 +5,13 @@ import com.example.data.bracket.BracketEngine
 import com.example.data.model.AppNotification
 import com.example.data.model.MatchPlayer
 import com.example.data.model.MatchStatus
+import com.example.data.model.ORGANIZER_EMAIL
 import com.example.data.model.PaymentMethod
 import com.example.data.model.RegistrationStatus
 import com.example.data.model.TournamentInfo
 import com.example.data.model.TournamentMatch
 import com.example.data.model.TournamentRegistration
+import com.example.data.model.TournamentRules
 import com.example.data.model.UserProfile
 import com.example.data.model.UserRole
 import com.google.firebase.auth.FirebaseAuth
@@ -44,6 +46,9 @@ class FirebaseRepository {
 
     private val _notifications = MutableStateFlow<List<AppNotification>>(emptyList())
     val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
+
+    private val _rules = MutableStateFlow(TournamentRules())
+    val rules: StateFlow<TournamentRules> = _rules.asStateFlow()
 
     private val listeners = mutableListOf<ListenerRegistration>()
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -120,6 +125,27 @@ class FirebaseRepository {
             listeners.add(mListener)
         } catch (e: Exception) {
             Log.w(tag, "Failed to attach matches listener: ${e.message}")
+        }
+
+        // 4. Tournament Rules listener (settings/rules)
+        try {
+            val rulesListener = db.collection("settings").document("rules")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e(tag, "Rules listener error", error)
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null && snapshot.exists()) {
+                        val r = snapshot.toObject(TournamentRules::class.java)
+                        if (r != null) {
+                            _rules.value = r
+                            Log.d(tag, "Rules updated in real-time from settings/rules: ${r.matchDuration}, ${r.extraTimePk}")
+                        }
+                    }
+                }
+            listeners.add(rulesListener)
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to attach rules listener: ${e.message}")
         }
     }
 
@@ -281,15 +307,28 @@ class FirebaseRepository {
         onSuccess()
     }
 
-    fun signInWithGoogle(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+    fun signInWithGoogle(
+        email: String = ORGANIZER_EMAIL,
+        fullName: String? = null,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
         val googleUid = "user_google_" + UUID.randomUUID().toString().take(8)
+        val isAdmin = email.trim().equals(ORGANIZER_EMAIL, ignoreCase = true)
+        val role = if (isAdmin) UserRole.ADMIN else UserRole.PLAYER
+        val displayName = fullName ?: if (isAdmin) "Jadid Mollik (Organizer)" else "Tanvir Hossain"
+        val phone = if (isAdmin) "+8801980000601" else "+8801904031478"
+        val igId = if (isAdmin) "EF-ADMIN-01" else "772-" + (100..999).random() + "-123"
+        val igName = if (isAdmin) "Admin_Jadid" else "CyberStriker_BD"
+
         val profile = UserProfile(
             uid = googleUid,
-            fullName = "Jadid Nogorigang",
-            phoneNumber = "+8801980000601",
-            inGameId = "772-990-123",
-            inGameUsername = "CyberStriker_BD",
-            role = UserRole.PLAYER
+            fullName = displayName,
+            email = email.trim(),
+            phoneNumber = phone,
+            inGameId = igId,
+            inGameUsername = igName,
+            role = role
         )
         _currentUser.value = profile
         onSuccess()
@@ -306,7 +345,10 @@ class FirebaseRepository {
 
     fun switchUserRole(role: UserRole) {
         val current = _currentUser.value ?: return
-        _currentUser.value = current.copy(role = role)
+        // Role switching only permitted if user is verified organizer
+        if (current.email.trim().equals(ORGANIZER_EMAIL, ignoreCase = true)) {
+            _currentUser.value = current.copy(role = role)
+        }
     }
 
     fun updateProfile(fullName: String, phoneNumber: String, inGameId: String, inGameUsername: String) {
@@ -480,6 +522,30 @@ class FirebaseRepository {
                 "${updatedTourney.champion} (${updatedTourney.championUsername}) has won the Dhaka eFootball Open Championship!"
             )
         }
+    }
+
+    // Admin Update Tournament Rules in Firestore (settings/rules)
+    fun updateRules(newRules: TournamentRules, updatedBy: String = "Organizer") {
+        val rulesWithMeta = newRules.copy(
+            lastUpdatedBy = updatedBy,
+            updatedAt = System.currentTimeMillis()
+        )
+        _rules.value = rulesWithMeta
+
+        firestore?.let { db ->
+            db.collection("settings").document("rules").set(rulesWithMeta)
+                .addOnSuccessListener {
+                    Log.d(tag, "Rules saved to Firestore settings/rules successfully")
+                }
+                .addOnFailureListener { e ->
+                    Log.e(tag, "Failed to write rules to Firestore settings/rules", e)
+                }
+        }
+
+        addNotification(
+            "Rules Updated & Broadcasted",
+            "Updated regulations: ${rulesWithMeta.matchDuration}, ${rulesWithMeta.extraTimePk}, ${rulesWithMeta.substitutions}, ${rulesWithMeta.rematchRule}."
+        )
     }
 
     fun addNotification(title: String, message: String) {

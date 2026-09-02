@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -35,8 +37,12 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +55,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -81,6 +88,7 @@ import com.example.data.model.RegistrationStatus
 import com.example.data.model.TournamentInfo
 import com.example.data.model.TournamentMatch
 import com.example.data.model.TournamentRegistration
+import com.example.data.model.TournamentRules
 import com.example.data.model.UserProfile
 import com.example.data.model.UserRole
 import com.example.ui.bracket.BracketViewer
@@ -109,6 +117,7 @@ import com.example.ui.viewmodel.TournamentViewModel
 @Composable
 fun AdminScreen(
     viewModel: TournamentViewModel,
+    onReturnToPlayer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
@@ -120,19 +129,18 @@ fun AdminScreen(
     val pendingCount by viewModel.pendingCount.collectAsState()
     val approvedCount by viewModel.approvedCount.collectAsState()
     val completedMatchesCount by viewModel.completedMatchesCount.collectAsState()
+    val rules by viewModel.rules.collectAsState()
 
     var selectedAdminTab by remember { mutableIntStateOf(0) }
     var selectedMatchForEdit by remember { mutableStateOf<TournamentMatch?>(null) }
     var rejectDialogRegistration by remember { mutableStateOf<TournamentRegistration?>(null) }
 
-    val adminTabs = listOf("Queue ($pendingCount)", "Live Bracket", "Settings", "Stats")
+    val adminTabs = listOf("Queue ($pendingCount)", "Live Bracket", "Edit Rules", "Settings", "Stats")
 
     // Admin Auth Gatekeeper Check
     if (currentUser?.role != UserRole.ADMIN) {
         AdminUnauthorizedGatekeeper(
-            onElevateToAdmin = {
-                viewModel.switchRole(UserRole.ADMIN)
-            },
+            onReturnToPlayer = onReturnToPlayer,
             modifier = modifier
         )
         return
@@ -144,10 +152,11 @@ fun AdminScreen(
             .background(Slate950)
     ) {
         // Admin Navigation Tabs
-        TabRow(
+        ScrollableTabRow(
             selectedTabIndex = selectedAdminTab,
             containerColor = Slate900,
             contentColor = StatusPurple,
+            edgePadding = 12.dp,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     modifier = Modifier.tabIndicatorOffset(tabPositions[selectedAdminTab]),
@@ -189,13 +198,19 @@ fun AdminScreen(
                 onMatchClick = { selectedMatchForEdit = it },
                 onGenerateBracket = { viewModel.generateBracket() }
             )
-            2 -> TournamentSettingsTab(
+            2 -> EditRulesAdminTab(
+                rules = rules,
+                onSaveAndBroadcast = { updatedRules ->
+                    viewModel.updateRules(updatedRules)
+                }
+            )
+            3 -> TournamentSettingsTab(
                 tournament = tournament,
                 onSaveSettings = { title, fee, bkash, nagad, isOpen, duration ->
                     viewModel.updateTournamentSettings(title, fee, bkash, nagad, isOpen, duration)
                 }
             )
-            3 -> AdminStatsTab(
+            4 -> AdminStatsTab(
                 registrations = registrations,
                 tournament = tournament,
                 pendingCount = pendingCount,
@@ -233,7 +248,7 @@ fun AdminScreen(
 
 @Composable
 fun AdminUnauthorizedGatekeeper(
-    onElevateToAdmin: () -> Unit,
+    onReturnToPlayer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -261,7 +276,7 @@ fun AdminUnauthorizedGatekeeper(
         Spacer(modifier = Modifier.height(18.dp))
 
         Text(
-            text = "ADMIN HOST ACCESS ONLY",
+            text = "ADMIN ACCESS RESTRICTED",
             color = Color.White,
             fontWeight = FontWeight.Black,
             fontSize = 20.sp,
@@ -271,7 +286,7 @@ fun AdminUnauthorizedGatekeeper(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Your current account does not have role: 'admin' in Firestore. Only authorized tournament administrators can verify payments and manage the draw.",
+            text = "This dashboard is locked to tournament organizer nogorigangjadid@gmail.com only. Regular accounts are restricted to Player View.",
             color = Slate400,
             fontSize = 13.sp,
             textAlign = TextAlign.Center
@@ -280,10 +295,10 @@ fun AdminUnauthorizedGatekeeper(
         Spacer(modifier = Modifier.height(24.dp))
 
         CyberButton(
-            text = "Switch To Admin Host Role",
-            onClick = onElevateToAdmin,
-            icon = Icons.Default.AdminPanelSettings,
-            testTag = "elevate_to_admin_btn"
+            text = "Return to Player View",
+            onClick = onReturnToPlayer,
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            testTag = "return_to_player_btn"
         )
     }
 }
@@ -754,6 +769,350 @@ fun TournamentSettingsTab(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun EditRulesAdminTab(
+    rules: TournamentRules,
+    onSaveAndBroadcast: (TournamentRules) -> Unit
+) {
+    var matchDuration by remember(rules) { mutableStateOf(rules.matchDuration) }
+    var extraTimePk by remember(rules) { mutableStateOf(rules.extraTimePk) }
+    var substitutions by remember(rules) { mutableStateOf(rules.substitutions) }
+    var rematchRule by remember(rules) { mutableStateOf(rules.rematchRule) }
+    var walkoverGrace by remember(rules) { mutableStateOf(rules.walkoverGrace) }
+
+    var matchSettingsDetails by remember(rules) { mutableStateOf(rules.matchSettingsDetails) }
+    var squadFairPlayDetails by remember(rules) { mutableStateOf(rules.squadFairPlayDetails) }
+    var networkDisputesDetails by remember(rules) { mutableStateOf(rules.networkDisputesDetails) }
+    var scoreReportingDetails by remember(rules) { mutableStateOf(rules.scoreReportingDetails) }
+    var punctualityConductDetails by remember(rules) { mutableStateOf(rules.punctualityConductDetails) }
+    var organizerContact by remember(rules) { mutableStateOf(rules.organizerContact) }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            CyberGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                borderColor = StatusPurple.copy(alpha = 0.5f),
+                backgroundColor = Slate900
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "TOURNAMENT RULES & REGULATIONS",
+                                color = Color.White,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Firestore doc: settings/rules • Real-time broadcast to all players",
+                                color = NeonCyanBright,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "QUICK BADGES (10 Mins, ET/PK ON, 5 Subs, 15-min rematch rule, 10-min walkover grace)",
+                        color = Slate400,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Row 1: Duration & Extra Time
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = matchDuration,
+                            onValueChange = { matchDuration = it },
+                            label = { Text("Match Duration (e.g. 10 Mins)", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = StatusPurple,
+                                unfocusedBorderColor = Slate700
+                            )
+                        )
+                        OutlinedTextField(
+                            value = extraTimePk,
+                            onValueChange = { extraTimePk = it },
+                            label = { Text("Extra Time & PK (e.g. ET/PK ON)", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = StatusPurple,
+                                unfocusedBorderColor = Slate700
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Row 2: Subs & Rematch Rule
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = substitutions,
+                            onValueChange = { substitutions = it },
+                            label = { Text("Substitutions (e.g. 5 Subs)", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = StatusPurple,
+                                unfocusedBorderColor = Slate700
+                            )
+                        )
+                        OutlinedTextField(
+                            value = rematchRule,
+                            onValueChange = { rematchRule = it },
+                            label = { Text("Rematch Rule (e.g. 15-min rematch rule)", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = StatusPurple,
+                                unfocusedBorderColor = Slate700
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Row 3: Walkover Grace & Organizer Contact
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = walkoverGrace,
+                            onValueChange = { walkoverGrace = it },
+                            label = { Text("Walkover Grace (e.g. 10-min walkover grace)", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = StatusPurple,
+                                unfocusedBorderColor = Slate700
+                            )
+                        )
+                        OutlinedTextField(
+                            value = organizerContact,
+                            onValueChange = { organizerContact = it },
+                            label = { Text("Organizer WhatsApp / Contact", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = StatusPurple,
+                                unfocusedBorderColor = Slate700
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Live Badges Preview Bar
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Slate950,
+                        border = BorderStroke(1.dp, Slate800),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "LIVE BADGES PREVIEW (SHOWN TO PLAYERS):",
+                                color = Slate400,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                AdminBadgeChip(text = matchDuration, color = NeonCyanBright, modifier = Modifier.weight(1f))
+                                AdminBadgeChip(text = extraTimePk, color = StatusEmerald, modifier = Modifier.weight(1f))
+                                AdminBadgeChip(text = substitutions, color = StatusPurple, modifier = Modifier.weight(1f))
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                AdminBadgeChip(text = rematchRule, color = StatusAmber, modifier = Modifier.weight(1f))
+                                AdminBadgeChip(text = walkoverGrace, color = StatusRose, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text(
+                        text = "DETAILED REGULATION CLAUSES (2-COLUMN CARDS)",
+                        color = Slate400,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = matchSettingsDetails,
+                        onValueChange = { matchSettingsDetails = it },
+                        label = { Text("Match Settings & Time Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = StatusPurple,
+                            unfocusedBorderColor = Slate700
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = squadFairPlayDetails,
+                        onValueChange = { squadFairPlayDetails = it },
+                        label = { Text("Squad & Fair Play Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = StatusPurple,
+                            unfocusedBorderColor = Slate700
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = networkDisputesDetails,
+                        onValueChange = { networkDisputesDetails = it },
+                        label = { Text("Network Disconnections & Lag Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = StatusPurple,
+                            unfocusedBorderColor = Slate700
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = scoreReportingDetails,
+                        onValueChange = { scoreReportingDetails = it },
+                        label = { Text("Score Reporting & Screenshot Proof Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = StatusPurple,
+                            unfocusedBorderColor = Slate700
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = punctualityConductDetails,
+                        onValueChange = { punctualityConductDetails = it },
+                        label = { Text("Punctuality, Walkover & Conduct Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = StatusPurple,
+                            unfocusedBorderColor = Slate700
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    CyberButton(
+                        text = "SAVE & BROADCAST",
+                        onClick = {
+                            val updated = rules.copy(
+                                matchDuration = matchDuration.trim(),
+                                extraTimePk = extraTimePk.trim(),
+                                substitutions = substitutions.trim(),
+                                rematchRule = rematchRule.trim(),
+                                walkoverGrace = walkoverGrace.trim(),
+                                matchSettingsDetails = matchSettingsDetails.trim(),
+                                squadFairPlayDetails = squadFairPlayDetails.trim(),
+                                networkDisputesDetails = networkDisputesDetails.trim(),
+                                scoreReportingDetails = scoreReportingDetails.trim(),
+                                punctualityConductDetails = punctualityConductDetails.trim(),
+                                organizerContact = organizerContact.trim()
+                            )
+                            onSaveAndBroadcast(updated)
+                        },
+                        icon = Icons.AutoMirrored.Filled.Send,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("save_broadcast_rules_btn")
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminBadgeChip(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = color.copy(alpha = 0.15f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f)),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier.padding(vertical = 4.dp, horizontal = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                color = color,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
         }
     }
 }

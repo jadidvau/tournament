@@ -50,6 +50,18 @@ fun AppNavigation(
     var showNotificationDialog by remember { mutableStateOf(false) }
 
     var currentRoute by remember { mutableStateOf(Routes.PLAYER) }
+    val isAdmin = currentUser?.role == UserRole.ADMIN
+
+    // Role-based navigation lock: Ensure non-admins cannot stay on Admin screen
+    LaunchedEffect(currentUser) {
+        if (!isAdmin && currentRoute == Routes.ADMIN) {
+            currentRoute = Routes.PLAYER
+            navController.navigate(Routes.PLAYER) {
+                popUpTo(Routes.ADMIN) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { msg ->
@@ -67,10 +79,10 @@ fun AppNavigation(
             EsportsHeader(
                 title = tournament.title,
                 subtitle = "Dhaka eFootball Open",
-                currentRole = currentUser?.role ?: UserRole.PLAYER,
-                onSwitchRole = { newRole ->
-                    viewModel.switchRole(newRole)
-                    if (newRole == UserRole.ADMIN) {
+                isAdminUser = isAdmin,
+                currentView = currentRoute,
+                onToggleView = { targetView ->
+                    if (targetView == "admin" && isAdmin) {
                         currentRoute = Routes.ADMIN
                         navController.navigate(Routes.ADMIN) {
                             popUpTo(Routes.PLAYER) { saveState = true }
@@ -106,7 +118,16 @@ fun AppNavigation(
                 }
 
                 composable(Routes.ADMIN) {
-                    AdminScreen(viewModel = viewModel)
+                    AdminScreen(
+                        viewModel = viewModel,
+                        onReturnToPlayer = {
+                            currentRoute = Routes.PLAYER
+                            navController.navigate(Routes.PLAYER) {
+                                popUpTo(Routes.ADMIN) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    )
                 }
             }
         }

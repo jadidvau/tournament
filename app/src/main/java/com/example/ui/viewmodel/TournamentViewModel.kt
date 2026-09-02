@@ -9,6 +9,7 @@ import com.example.data.model.RegistrationStatus
 import com.example.data.model.TournamentInfo
 import com.example.data.model.TournamentMatch
 import com.example.data.model.TournamentRegistration
+import com.example.data.model.TournamentRules
 import com.example.data.model.UserProfile
 import com.example.data.model.UserRole
 import com.example.data.repository.FirebaseRepository
@@ -26,6 +27,7 @@ class TournamentViewModel(
 
     val currentUser: StateFlow<UserProfile?> = repository.currentUser
     val tournament: StateFlow<TournamentInfo> = repository.tournament
+    val rules: StateFlow<TournamentRules> = repository.rules
     val registrations: StateFlow<List<TournamentRegistration>> = repository.registrations
     val matches: StateFlow<List<TournamentMatch>> = repository.matches
     val notifications: StateFlow<List<AppNotification>> = repository.notifications
@@ -101,10 +103,17 @@ class TournamentViewModel(
         showSnackbar("Switched role to ${role.name}")
     }
 
-    fun signInWithGoogle() {
+    fun signInWithGoogle(
+        email: String = com.example.data.model.ORGANIZER_EMAIL,
+        fullName: String? = null
+    ) {
         repository.signInWithGoogle(
+            email = email,
+            fullName = fullName,
             onSuccess = {
-                showSnackbar("Signed in with Google successfully")
+                val isOrganizer = email.trim().equals(com.example.data.model.ORGANIZER_EMAIL, ignoreCase = true)
+                val roleName = if (isOrganizer) "ADMIN (Organizer Privileges Granted)" else "PLAYER (Participant Mode)"
+                showSnackbar("Signed in as $roleName")
             },
             onError = { err ->
                 showSnackbar(err)
@@ -179,5 +188,11 @@ class TournamentViewModel(
     fun updateMatchScore(matchId: String, p1Score: Int, p2Score: Int, status: MatchStatus) {
         repository.updateMatchScore(matchId, p1Score, p2Score, status)
         showSnackbar("Match score & status updated!")
+    }
+
+    fun updateRules(rules: TournamentRules) {
+        val adminName = currentUser.value?.fullName ?: "Organizer"
+        repository.updateRules(rules, adminName)
+        showSnackbar("Rules saved & broadcasted to all players!")
     }
 }
