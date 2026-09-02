@@ -101,6 +101,22 @@ class TournamentViewModel(
         showSnackbar("Switched role to ${role.name}")
     }
 
+    fun signInWithGoogle() {
+        repository.signInWithGoogle(
+            onSuccess = {
+                showSnackbar("Signed in with Google successfully")
+            },
+            onError = { err ->
+                showSnackbar(err)
+            }
+        )
+    }
+
+    fun logout() {
+        repository.logout()
+        showSnackbar("Logged out successfully")
+    }
+
     fun updateProfile(fullName: String, phoneNumber: String, inGameId: String, inGameUsername: String) {
         repository.updateProfile(fullName, phoneNumber, inGameId, inGameUsername)
         showSnackbar("Profile updated successfully")

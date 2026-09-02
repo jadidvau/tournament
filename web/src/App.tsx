@@ -16,16 +16,8 @@ import {
 import { generateBracket, advanceMatchWinner } from './utils/bracketEngine';
 
 export function App() {
-  // Default Mock Profile & Tournament Data with Real Firestore Synchronization
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>({
-    uid: 'user_player_tanvir',
-    fullName: 'Tanvir Hossain',
-    phoneNumber: '+8801904031478',
-    inGameId: '549-218-093',
-    inGameUsername: 'TanvirDhaka99',
-    role: 'player',
-    createdAt: Date.now()
-  });
+  // Initial Unauthenticated State (User must sign in)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   const [tournament, setTournament] = useState<TournamentInfo>({
     id: 'dhaka_championship_2026',
@@ -145,6 +137,21 @@ export function App() {
     setCurrentUser(null);
   };
 
+  const handleGoogleSignIn = () => {
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const googleUser: UserProfile = {
+      uid: `usr_ggl_${randomSuffix}`,
+      fullName: 'Jadid Nogorigang',
+      email: 'nogorigangjadid@gmail.com',
+      phoneNumber: '+8801980000601',
+      inGameId: '772-990-123',
+      inGameUsername: 'Nogorigang_Jadid',
+      role: 'player',
+      createdAt: Date.now()
+    };
+    setCurrentUser(googleUser);
+  };
+
   const handleSubmitPayment = async (method: PaymentMethod, trxId: string) => {
     if (!currentUser) return;
     const newReg: TournamentRegistration = {
@@ -262,6 +269,7 @@ export function App() {
                   onSubmitPayment={handleSubmitPayment}
                   onUpdateProfile={handleUpdateProfile}
                   onGoogleSignIn={handleGoogleSignIn}
+                  onLogout={handleLogout}
                 />
               }
             />

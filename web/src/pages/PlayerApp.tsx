@@ -19,7 +19,8 @@ import {
   BookOpen,
   MessageCircle,
   Code2,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import {
   PaymentMethod,
@@ -40,6 +41,7 @@ interface PlayerAppProps {
   onSubmitPayment: (method: PaymentMethod, trxId: string) => Promise<void>;
   onUpdateProfile: (name: string, phone: string, igId: string, igUsername: string) => Promise<void>;
   onGoogleSignIn: () => void;
+  onLogout?: () => void;
 }
 
 export const PlayerApp: React.FC<PlayerAppProps> = ({
@@ -50,7 +52,8 @@ export const PlayerApp: React.FC<PlayerAppProps> = ({
   matches,
   onSubmitPayment,
   onUpdateProfile,
-  onGoogleSignIn
+  onGoogleSignIn,
+  onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'match' | 'bracket' | 'profile'>('overview');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bKash');
@@ -678,61 +681,235 @@ export const PlayerApp: React.FC<PlayerAppProps> = ({
 
       {/* TAB 4: Profile Editor */}
       {activeTab === 'profile' && (
-        <div className="max-w-xl mx-auto rounded-[32px] bg-slate-900/60 border border-slate-800/80 p-6 sm:p-8 space-y-6 shadow-2xl backdrop-blur-md">
-          <div>
-            <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest leading-none mb-1">
-              Settings
-            </p>
-            <h3 className="font-esports text-lg font-black italic tracking-tighter text-white uppercase">
-              Player Profile & Firebase Credentials
-            </h3>
-          </div>
-
+        <div className="max-w-xl mx-auto space-y-6">
           {!currentUser ? (
-            <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 text-center space-y-4">
-              <User className="w-10 h-10 text-cyan-400 mx-auto" />
-              <p className="text-sm text-slate-300 font-bold">You are currently logged out</p>
-              <p className="text-xs text-slate-500">Sign in with Google to manage your player profile and sync with Firestore.</p>
-              <button
-                type="button"
-                onClick={onGoogleSignIn}
-                className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm flex items-center justify-center gap-2 shadow-lg"
-              >
-                Sign in with Google
-              </button>
+            <div className="rounded-[32px] bg-slate-900/70 border border-cyan-500/30 p-8 sm:p-10 space-y-6 shadow-2xl backdrop-blur-md text-center">
+              <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mx-auto text-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.2)]">
+                <User className="w-8 h-8" />
+              </div>
+
+              <div>
+                <p className="text-[11px] font-black uppercase text-cyan-400 tracking-[0.25em] mb-1">
+                  Player Identity & Verification
+                </p>
+                <h3 className="font-esports text-2xl font-black italic tracking-tighter text-white uppercase">
+                  My Profile & Credentials
+                </h3>
+                <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                  You are currently unauthenticated. Sign in with Google to reveal your user credentials, permanent Firebase UID, and live tournament registration status.
+                </p>
+              </div>
+
+              {/* Large, clickable Sign in with Google Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onGoogleSignIn}
+                  className="w-full py-4 px-6 rounded-2xl bg-white hover:bg-slate-100 active:scale-[0.98] text-slate-900 font-extrabold text-base flex items-center justify-center gap-3 shadow-[0_8px_30px_rgba(255,255,255,0.2)] transition-all cursor-pointer group"
+                >
+                  <svg className="w-6 h-6 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>Sign in with Google</span>
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800/80">
+                <p className="text-[11px] text-slate-500">
+                  Protected by Firebase Auth • 1-click verified login
+                </p>
+              </div>
             </div>
           ) : (
-            <>
-              {/* Account Card */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center gap-4">
+            <div className="rounded-[32px] bg-slate-900/60 border border-slate-800/80 p-6 sm:p-8 space-y-6 shadow-2xl backdrop-blur-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest leading-none mb-1">
+                    Authenticated Player
+                  </p>
+                  <h3 className="font-esports text-lg font-black italic tracking-tighter text-white uppercase">
+                    My Profile & Credentials
+                  </h3>
+                </div>
+
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/40 text-xs font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Log Out</span>
+                  </button>
+                )}
+              </div>
+
+              {/* 1. Account & User Info Card */}
+              <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 {currentUser.photoURL ? (
                   <img
                     src={currentUser.photoURL}
                     alt={currentUser.fullName}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+                    className="w-16 h-16 rounded-full object-cover border-2 border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.25)]"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-slate-900 border-2 border-cyan-500/40 flex items-center justify-center font-black text-lg text-cyan-400">
-                    {currentUser.fullName ? currentUser.fullName.slice(0, 2).toUpperCase() : 'TA'}
+                  <div className="w-16 h-16 rounded-full bg-slate-900 border-2 border-cyan-500/40 flex items-center justify-center font-black text-xl text-cyan-400 shrink-0">
+                    {currentUser.fullName ? currentUser.fullName.slice(0, 2).toUpperCase() : 'JN'}
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-white truncate">{currentUser.fullName}</h4>
-                    <span className="text-[9px] uppercase px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-500/30">
+
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-base font-black text-white">{currentUser.fullName}</h4>
+                    <span className="text-[9px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/30">
                       {currentUser.role}
                     </span>
                   </div>
+
+                  <p className="text-xs text-cyan-400 font-bold">
+                    Gamertag: @{currentUser.inGameUsername}
+                  </p>
+
                   {currentUser.email && (
-                    <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                      <Mail className="w-3 h-3 text-slate-500" />
+                    <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-slate-500" />
                       {currentUser.email}
                     </p>
                   )}
-                  <p className="text-[10px] text-cyan-400 font-mono truncate mt-1">
-                    Firebase UID: {currentUser.uid}
+
+                  <p className="text-xs text-slate-400 font-mono">
+                    Phone: {currentUser.phoneNumber || 'Not provided'}
                   </p>
                 </div>
+              </div>
+
+              {/* 2. Firebase UID Card */}
+              <div className="p-4 rounded-2xl bg-slate-950/90 border border-cyan-500/30 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 block mb-0.5">
+                    Firebase Permanent UID
+                  </span>
+                  <p className="text-xs sm:text-sm font-mono font-bold text-white truncate">
+                    {currentUser.uid}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopy(currentUser.uid, 'profile_uid')}
+                  className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all"
+                >
+                  {copiedField === 'profile_uid' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedField === 'profile_uid' ? 'Copied' : 'Copy UID'}</span>
+                </button>
+              </div>
+
+              {/* 3. Tournament Registration Status */}
+              <div
+                className={`p-5 rounded-2xl border backdrop-blur-md ${
+                  registration?.status === 'joined'
+                    ? 'bg-emerald-950/30 border-emerald-500/40'
+                    : registration?.status === 'pending'
+                    ? 'bg-amber-950/30 border-amber-500/40'
+                    : registration?.status === 'rejected'
+                    ? 'bg-rose-950/30 border-rose-500/40'
+                    : 'bg-slate-950/80 border-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Tournament Registration Status
+                  </span>
+                  <span
+                    className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${
+                      registration?.status === 'joined'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50'
+                        : registration?.status === 'pending'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
+                        : registration?.status === 'rejected'
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700'
+                    }`}
+                  >
+                    {registration ? registration.status : 'NOT REGISTERED'}
+                  </span>
+                </div>
+
+                {registration?.status === 'joined' && (
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Verified Participant ({registration.feeAmount} BDT Entry Paid)</span>
+                    </div>
+                    <p className="text-slate-400 font-mono">
+                      Payment: {registration.paymentMethod} • TrxID: {registration.trxId}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Your spot in the {tournament.title} is locked. Check "My Match Hub" for opponent details.
+                    </p>
+                  </div>
+                )}
+
+                {registration?.status === 'pending' && (
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold">
+                      <Hourglass className="w-4 h-4" />
+                      <span>Verification In Progress</span>
+                    </div>
+                    <p className="text-slate-400 font-mono">
+                      Payment: {registration.paymentMethod} • TrxID: {registration.trxId}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Administrator Jadid Mollik is reviewing your payment. You will be placed into the bracket once approved.
+                    </p>
+                  </div>
+                )}
+
+                {registration?.status === 'rejected' && (
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex items-center gap-2 text-rose-400 font-bold">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>Registration Rejected: {registration.rejectionReason}</span>
+                    </div>
+                    <p className="text-slate-400">
+                      Please check your transaction ID and re-submit your payment verification in the Overview tab.
+                    </p>
+                  </div>
+                )}
+
+                {!registration && (
+                  <div className="space-y-2 text-xs">
+                    <p className="text-slate-300 font-semibold">
+                      You have not submitted tournament entry fee yet.
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Entry fee is {tournament.entryFee} BDT via bKash or Nagad. Head over to the Championship Overview tab to send payment and submit your TrxID.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('overview')}
+                      className="text-xs font-bold text-cyan-400 hover:text-cyan-300 underline underline-offset-2 flex items-center gap-1"
+                    >
+                      <span>Go to Payment Form</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {profileSuccessMsg && (
@@ -741,9 +918,16 @@ export const PlayerApp: React.FC<PlayerAppProps> = ({
                 </div>
               )}
 
-              <form onSubmit={handleProfileSave} className="space-y-4">
+              {/* 4. Edit In-Game Information Form */}
+              <form onSubmit={handleProfileSave} className="space-y-4 pt-2">
+                <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+                  Edit eFootball Credentials
+                </h4>
+
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Full Name</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                    Full Name
+                  </label>
                   <input
                     type="text"
                     required
@@ -752,8 +936,11 @@ export const PlayerApp: React.FC<PlayerAppProps> = ({
                     className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Phone Number (+880)</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                    Phone Number (+880)
+                  </label>
                   <input
                     type="text"
                     required
@@ -762,8 +949,11 @@ export const PlayerApp: React.FC<PlayerAppProps> = ({
                     className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">eFootball In-Game ID</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                    eFootball In-Game ID
+                  </label>
                   <input
                     type="text"
                     required
@@ -772,8 +962,11 @@ export const PlayerApp: React.FC<PlayerAppProps> = ({
                     className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">eFootball Gamertag / Username</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                    eFootball Gamertag / Username
+                  </label>
                   <input
                     type="text"
                     required
@@ -786,12 +979,12 @@ export const PlayerApp: React.FC<PlayerAppProps> = ({
                 <button
                   type="submit"
                   disabled={isUpdatingProfile}
-                  className="w-full py-4 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-slate-950 font-black text-sm uppercase tracking-wider shadow-[0_8px_24px_rgba(6,182,212,0.3)] transition-all"
+                  className="w-full py-4 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-slate-950 font-black text-sm uppercase tracking-wider shadow-[0_8px_24px_rgba(6,182,212,0.3)] transition-all cursor-pointer"
                 >
                   {isUpdatingProfile ? 'Saving to Firestore...' : 'Save Profile Changes'}
                 </button>
               </form>
-            </>
+            </div>
           )}
         </div>
       )}

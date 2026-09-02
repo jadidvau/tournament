@@ -1,5 +1,7 @@
 package com.example.ui.player
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -35,6 +38,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,6 +69,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -120,6 +125,7 @@ fun PlayerScreen(
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showProfileDialog by remember { mutableStateOf(false) }
+    var showRulesDialog by remember { mutableStateOf(false) }
 
     val tabs = listOf("Overview & Pay", "My Match", "Full Bracket", "My Profile")
 
@@ -166,7 +172,8 @@ fun PlayerScreen(
                 onSubmitPayment = { method, trxId ->
                     viewModel.submitRegistration(method, trxId)
                 },
-                onEditProfile = { showProfileDialog = true }
+                onEditProfile = { showProfileDialog = true },
+                onShowRules = { showRulesDialog = true }
             )
             1 -> MyMatchTab(
                 userMatch = currentMatch,
@@ -184,9 +191,18 @@ fun PlayerScreen(
             3 -> PlayerProfileTab(
                 user = currentUser,
                 registration = registration,
+                onGoogleSignIn = { viewModel.signInWithGoogle() },
+                onLogout = { viewModel.logout() },
                 onEditProfile = { showProfileDialog = true }
             )
         }
+    }
+
+    if (showRulesDialog) {
+        ExpandableRulesDialog(
+            tournament = tournament,
+            onDismiss = { showRulesDialog = false }
+        )
     }
 
     if (showProfileDialog && currentUser != null) {
@@ -207,7 +223,8 @@ fun OverviewAndPaymentTab(
     registration: TournamentRegistration?,
     currentUser: UserProfile?,
     onSubmitPayment: (PaymentMethod, String) -> Unit,
-    onEditProfile: () -> Unit
+    onEditProfile: () -> Unit,
+    onShowRules: () -> Unit
 ) {
     var selectedMethod by remember { mutableStateOf(PaymentMethod.bKash) }
     var trxIdInput by remember { mutableStateOf("") }
@@ -304,6 +321,156 @@ fun OverviewAndPaymentTab(
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Black
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onShowRules() }
+                            .testTag("rules_modal_trigger_btn"),
+                        color = NeonCyan.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = NeonCyanBright,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "eFootball Tournament Rules",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                    Text(
+                                        text = "Match settings, squad limits, disconnections & conduct",
+                                        color = Slate400,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "VIEW RULES ›",
+                                color = NeonCyanBright,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Developer & Host Information Card
+        item {
+            val context = LocalContext.current
+            CyberGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                borderColor = NeonCyan.copy(alpha = 0.35f),
+                backgroundColor = Slate900
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = CircleShape,
+                                color = NeonCyan.copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.SportsEsports,
+                                        contentDescription = null,
+                                        tint = NeonCyanBright,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Slate800,
+                                    modifier = Modifier.padding(bottom = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "LEAD DEVELOPER & HOST",
+                                        color = NeonCyanBright,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Black,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "JADID MOLLIK",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Text(
+                                    text = "Platform Architect & Tournament Admin",
+                                    color = Slate400,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CyberButton(
+                            text = "WhatsApp: 01980000601",
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/8801980000601"))
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Default.Phone,
+                            testTag = "whatsapp_contact_btn"
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Slate800,
+                            border = BorderStroke(1.dp, Slate700),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { onShowRules() }
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "RULES",
+                                    color = NeonCyanBright,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -822,16 +989,123 @@ fun PlayerMatchProfileBox(
 fun PlayerProfileTab(
     user: UserProfile?,
     registration: TournamentRegistration?,
+    onGoogleSignIn: () -> Unit,
+    onLogout: () -> Unit,
     onEditProfile: () -> Unit
 ) {
-    if (user == null) return
+    if (user == null) {
+        // Unauthenticated State: Display large "Sign in with Google" button
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CyberGlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                borderColor = NeonCyan.copy(alpha = 0.4f),
+                backgroundColor = Slate900
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = NeonCyan.copy(alpha = 0.15f),
+                        border = BorderStroke(2.dp, NeonCyanBright),
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = null,
+                                tint = NeonCyanBright,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                    }
 
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "PLAYER IDENTITY",
+                            color = NeonCyanBright,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 2.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Sign In Required",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 22.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Sign in with Google to view your player credentials, permanent Firebase UID, and live tournament registration status.",
+                            color = Slate400,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Large Clickable "Sign in with Google" Button
+                    Surface(
+                        onClick = onGoogleSignIn,
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                        shadowElevation = 6.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("sign_in_with_google_button")
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "G",
+                                color = Color(0xFF4285F4),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 22.sp,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                            Text(
+                                text = "Sign in with Google",
+                                color = Color(0xFF1E293B),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Protected by Firebase Auth • 1-click verified login",
+                        color = Slate400.copy(alpha = 0.7f),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    // Authenticated state: Only display user information, UID, and registration status AFTER user logs in
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 1. User Information Card
         item {
             CyberGlassCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -887,14 +1161,121 @@ fun PlayerProfileTab(
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Slate800)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     ProfileFieldRow(label = "Phone Number", value = user.phoneNumber)
                     ProfileFieldRow(label = "eFootball In-Game ID", value = user.inGameId)
                     ProfileFieldRow(label = "Account Role", value = user.role.name)
-                    ProfileFieldRow(label = "Player UID", value = user.uid)
                 }
             }
+        }
+
+        // 2. Firebase Permanent UID Card
+        item {
+            CyberGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                borderColor = NeonCyan.copy(alpha = 0.3f),
+                backgroundColor = Slate950
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "FIREBASE PERMANENT UID",
+                        color = NeonCyanBright,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = user.uid,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        // 3. Tournament Registration Status Card
+        item {
+            val statusColor = when (registration?.status) {
+                RegistrationStatus.JOINED -> StatusEmerald
+                RegistrationStatus.PENDING -> StatusAmber
+                RegistrationStatus.REJECTED -> StatusRose
+                null -> Slate400
+            }
+
+            CyberGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                borderColor = statusColor.copy(alpha = 0.5f),
+                backgroundColor = Slate900
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "REGISTRATION STATUS",
+                            color = Slate400,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = statusColor.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, statusColor.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                text = registration?.status?.name ?: "NOT REGISTERED",
+                                color = statusColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (registration != null) {
+                        ProfileFieldRow(label = "Payment Method", value = registration.paymentMethod.name)
+                        ProfileFieldRow(label = "Trx ID", value = registration.trxId)
+                        ProfileFieldRow(label = "Fee Amount", value = "${registration.feeAmount} BDT")
+                        if (registration.status == RegistrationStatus.REJECTED && registration.rejectionReason != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Reason: ${registration.rejectionReason}",
+                                color = StatusRose,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "You have not registered for the championship tournament yet. Head to the Overview tab to submit entry fee.",
+                            color = Slate400,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // 4. Log Out Button
+        item {
+            CyberButton(
+                text = "LOG OUT / SWITCH ACCOUNT",
+                onClick = onLogout,
+                isSecondary = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("logout_button")
+            )
         }
     }
 }
@@ -1001,3 +1382,242 @@ fun ProfileEditDialog(
         }
     )
 }
+
+@Composable
+fun ExpandableRulesDialog(
+    tournament: TournamentInfo,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var expandedSection by remember { mutableIntStateOf(1) }
+
+    val ruleSections = remember(tournament) {
+        listOf(
+            RuleSectionItem(
+                id = 1,
+                title = "Match Settings & Game Setup",
+                details = listOf(
+                    "Match Duration: ${tournament.matchDurationMinutes} Minutes standard full-time.",
+                    "Extra Time & PK: Must be set to ON for knockout rounds.",
+                    "Condition: Neutral / Excellent for fair competition.",
+                    "Substitutions: Up to 5 substitutions across 3 stoppage windows (excluding halftime)."
+                )
+            ),
+            RuleSectionItem(
+                id = 2,
+                title = "Squad & Fair Play Regulations",
+                details = listOf(
+                    "Team Type: Dream Team (or Authentic) with team strength cap as specified by administrators.",
+                    "Anti-Glitch Policy: Exploiting network glitches results in immediate disqualification.",
+                    "Pause Etiquette: Max 3 pauses per match. Only pause during out-of-bounds or keeper possession."
+                )
+            ),
+            RuleSectionItem(
+                id = 3,
+                title = "Network Disconnections & Lag Disputes",
+                details = listOf(
+                    "Disconnect before 15th min: Rematch permitted with mutual consent if score was 0-0.",
+                    "Disconnect after 15th min: Disconnecting player receives a 0-3 forfeit loss unless verified server crash.",
+                    "Mutual disconnect: Remaining match minutes played out in a second leg with scores aggregated."
+                )
+            ),
+            RuleSectionItem(
+                id = 4,
+                title = "Score Reporting & Match Evidence",
+                details = listOf(
+                    "Screenshot Proof: Both players must take a full-screen screenshot of final match results.",
+                    "Submission Window: Winning player must submit score within 15 minutes of completion.",
+                    "Disputes: In case of dispute, admin reviews screenshot timestamps and in-game IDs."
+                )
+            ),
+            RuleSectionItem(
+                id = 5,
+                title = "Punctuality, Conduct & Administration",
+                details = listOf(
+                    "Grace Period: Players must join the lobby within 10 minutes or forfeit as walkover (WO).",
+                    "Conduct: Toxicity, abusive language, or unsporting behavior leads to a permanent ban.",
+                    "Organizer & Lead Developer: JADID MOLLIK (WhatsApp: 01980000601). Administrator decisions are final."
+                )
+            )
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Tournament Rules",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 17.sp
+                    )
+                    Text(
+                        text = "eFootball Competitive Regulations",
+                        color = Slate400,
+                        fontSize = 11.sp
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Slate400)
+                }
+            }
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Developer highlight banner in rules dialog
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Slate900,
+                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "ORGANIZER & DEVELOPER",
+                                    color = NeonCyanBright,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Text(
+                                    text = "JADID MOLLIK",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "WhatsApp: 01980000601",
+                                    color = StatusEmerald,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            TextButton(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/8801980000601"))
+                                    context.startActivity(intent)
+                                }
+                            ) {
+                                Text("CHAT", color = NeonCyanBright, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+
+                // Accordion items
+                items(ruleSections.size) { index ->
+                    val section = ruleSections[index]
+                    val isExpanded = expandedSection == section.id
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isExpanded) Slate900 else Slate900.copy(alpha = 0.6f),
+                        border = BorderStroke(1.dp, if (isExpanded) NeonCyan.copy(alpha = 0.5f) else Slate800),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                expandedSection = if (isExpanded) 0 else section.id
+                            }
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isExpanded) NeonCyanBright else Slate800,
+                                        modifier = Modifier.size(22.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = "${section.id}",
+                                                color = if (isExpanded) Slate950 else Slate400,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Black
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = section.title,
+                                        color = if (isExpanded) Color.White else Slate200,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Text(
+                                    text = if (isExpanded) "−" else "+",
+                                    color = if (isExpanded) NeonCyanBright else Slate400,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 16.sp
+                                )
+                            }
+
+                            AnimatedVisibility(visible = isExpanded) {
+                                Column(
+                                    modifier = Modifier.padding(top = 10.dp, start = 32.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    section.details.forEach { detail ->
+                                        Row(modifier = Modifier.fillMaxWidth()) {
+                                            Text(
+                                                text = "• ",
+                                                color = NeonCyanBright,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp
+                                            )
+                                            Text(
+                                                text = detail,
+                                                color = Slate400,
+                                                fontSize = 11.sp,
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            CyberButton(
+                text = "Close Rulebook",
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        containerColor = Slate950
+    )
+}
+
+private data class RuleSectionItem(
+    val id: Int,
+    val title: String,
+    val details: List<String>
+)
+

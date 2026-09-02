@@ -239,15 +239,8 @@ class FirebaseRepository {
         )
         _registrations.value = sampleRegistrations
 
-        // Default logged-in user as player
-        _currentUser.value = UserProfile(
-            uid = "user_me",
-            fullName = "Jadid Nogorigang",
-            phoneNumber = "+8801904031478",
-            inGameId = "772-990-123",
-            inGameUsername = "CyberStriker_BD",
-            role = UserRole.PLAYER
-        )
+        // Initial state is unauthenticated (logged out)
+        _currentUser.value = null
 
         // Generate initial bracket with joined players
         val approved = sampleRegistrations.filter { it.status == RegistrationStatus.JOINED }
@@ -286,6 +279,29 @@ class FirebaseRepository {
         )
         _currentUser.value = profile
         onSuccess()
+    }
+
+    fun signInWithGoogle(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        val googleUid = "user_google_" + UUID.randomUUID().toString().take(8)
+        val profile = UserProfile(
+            uid = googleUid,
+            fullName = "Jadid Nogorigang",
+            phoneNumber = "+8801980000601",
+            inGameId = "772-990-123",
+            inGameUsername = "CyberStriker_BD",
+            role = UserRole.PLAYER
+        )
+        _currentUser.value = profile
+        onSuccess()
+    }
+
+    fun logout() {
+        try {
+            auth?.signOut()
+        } catch (e: Exception) {
+            Log.w(tag, "Sign out error: ${e.message}")
+        }
+        _currentUser.value = null
     }
 
     fun switchUserRole(role: UserRole) {
