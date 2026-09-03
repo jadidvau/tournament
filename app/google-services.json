@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "435072429180",
+    "project_id": "efootball-tournament-bangla",
+    "storage_bucket": "efootball-tournament-bangla.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:435072429180:android:2900e9b820225e5615adf9",
+        "android_client_info": {
+          "package_name": "com.aistudio.dhakaefootball.efopen"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "435072429180-b89tahfvrt2fagmp6fqa0thss662h1ek.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNq5bdeX2VpqE9bofEZaeYKwhg2jAqG90"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "435072429180-b89tahfvrt2fagmp6fqa0thss662h1ek.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
