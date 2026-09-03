@@ -21,9 +21,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.data.model.ORGANIZER_EMAIL
 import com.example.data.model.UserRole
 import com.example.ui.admin.AdminScreen
+import com.example.ui.auth.AboutDeveloperDialog
 import com.example.ui.auth.AuthDialog
+import com.example.ui.auth.AuthScreen
+import com.example.ui.auth.DeveloperBottomBar
 import com.example.ui.auth.NotificationDialog
 import com.example.ui.components.EsportsHeader
 import com.example.ui.player.PlayerScreen
@@ -46,27 +50,46 @@ fun AppNavigation(
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
-    var showAuthDialog by remember { mutableStateOf(false) }
     var showNotificationDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
-    var currentRoute by remember { mutableStateOf(Routes.PLAYER) }
-    val isAdmin = currentUser?.role == UserRole.ADMIN
+    val isDesignatedAdmin = currentUser?.email?.trim().equals(ORGANIZER_EMAIL, ignoreCase = true) == true
 
-    // Role-based navigation lock: Ensure non-admins cannot stay on Admin screen
-    LaunchedEffect(currentUser) {
-        if (!isAdmin && currentRoute == Routes.ADMIN) {
-            currentRoute = Routes.PLAYER
-            navController.navigate(Routes.PLAYER) {
-                popUpTo(Routes.ADMIN) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
+    var currentRoute by remember(isDesignatedAdmin) {
+        mutableStateOf(if (isDesignatedAdmin) Routes.ADMIN else Routes.PLAYER)
     }
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg)
             viewModel.clearSnackbar()
+        }
+    }
+
+    // MANDATORY AUTH SPLASH / GATEKEEPER
+    // If not authenticated, immediately show AuthScreen. Users MUST NOT access dashboard or fixtures.
+    if (currentUser == null) {
+        AuthScreen(
+            viewModel = viewModel,
+            onAuthSuccess = { isAdminUser ->
+                currentRoute = if (isAdminUser) Routes.ADMIN else Routes.PLAYER
+            }
+        )
+        return
+    }
+
+    // Role-based navigation lock: Ensure non-admins cannot stay on Admin screen
+    LaunchedEffect(currentUser) {
+        if (!isDesignatedAdmin && currentRoute == Routes.ADMIN) {
+            currentRoute = Routes.PLAYER
+            try {
+                navController.navigate(Routes.PLAYER) {
+                    popUpTo(Routes.ADMIN) { inclusive = true }
+                    launchSingleTop = true
+                }
+            } catch (e: Throwable) {
+                android.util.Log.w("AppNavigation", "Navigation error: ${e.message}")
+            }
         }
     }
 
@@ -78,29 +101,45 @@ fun AppNavigation(
         topBar = {
             EsportsHeader(
                 title = tournament.title,
-                subtitle = "Dhaka eFootball Open",
-                isAdminUser = isAdmin,
+                subtitle = "Dhaka eFootball",
+                isAdminUser = isDesignatedAdmin,
                 currentView = currentRoute,
                 onToggleView = { targetView ->
-                    if (targetView == "admin" && isAdmin) {
+                    if (targetView == "admin" && isDesignatedAdmin) {
                         currentRoute = Routes.ADMIN
-                        navController.navigate(Routes.ADMIN) {
-                            popUpTo(Routes.PLAYER) { saveState = true }
-                            launchSingleTop = true
+                        try {
+                            navController.navigate(Routes.ADMIN) {
+                                popUpTo(Routes.PLAYER) { saveState = true }
+                                launchSingleTop = true
+                            }
+                        } catch (e: Throwable) {
+                            android.util.Log.w("AppNavigation", "Navigation error: ${e.message}")
                         }
                     } else {
                         currentRoute = Routes.PLAYER
-                        navController.navigate(Routes.PLAYER) {
-                            popUpTo(Routes.ADMIN) { saveState = true }
-                            launchSingleTop = true
+                        try {
+                            navController.navigate(Routes.PLAYER) {
+                                popUpTo(Routes.ADMIN) { saveState = true }
+                                launchSingleTop = true
+                            }
+                        } catch (e: Throwable) {
+                            android.util.Log.w("AppNavigation", "Navigation error: ${e.message}")
                         }
                     }
                 },
                 notificationCount = notifications.size,
-                onOpenNotifications = { showNotificationDialog = true }
+                onOpenNotifications = { showNotificationDialog = true },
+                onLogout = {
+                    viewModel.logout()
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            DeveloperBottomBar(
+                onOpenAbout = { showAboutDialog = true }
+            )
+        },
         containerColor = Slate950
     ) { paddingValues ->
         Box(
@@ -110,7 +149,7 @@ fun AppNavigation(
         ) {
             NavHost(
                 navController = navController,
-                startDestination = Routes.PLAYER,
+                startDestination = if (isDesignatedAdmin) Routes.ADMIN else Routes.PLAYER,
                 modifier = Modifier.fillMaxSize()
             ) {
                 composable(Routes.PLAYER) {
@@ -122,9 +161,13 @@ fun AppNavigation(
                         viewModel = viewModel,
                         onReturnToPlayer = {
                             currentRoute = Routes.PLAYER
-                            navController.navigate(Routes.PLAYER) {
-                                popUpTo(Routes.ADMIN) { inclusive = true }
-                                launchSingleTop = true
+                            try {
+                                navController.navigate(Routes.PLAYER) {
+                                    popUpTo(Routes.ADMIN) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } catch (e: Throwable) {
+                                android.util.Log.w("AppNavigation", "Navigation error: ${e.message}")
                             }
                         }
                     )
@@ -133,22 +176,16 @@ fun AppNavigation(
         }
     }
 
-    if (showAuthDialog) {
-        AuthDialog(
-            onDismiss = { showAuthDialog = false },
-            onLogin = { emailOrPhone, role ->
-                viewModel.login(emailOrPhone, role)
-                if (role == UserRole.ADMIN) {
-                    navController.navigate(Routes.ADMIN)
-                }
-            }
-        )
-    }
-
     if (showNotificationDialog) {
         NotificationDialog(
             notifications = notifications,
             onDismiss = { showNotificationDialog = false }
+        )
+    }
+
+    if (showAboutDialog) {
+        AboutDeveloperDialog(
+            onDismiss = { showAboutDialog = false }
         )
     }
 }

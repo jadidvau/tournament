@@ -134,7 +134,6 @@ fun PlayerScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     var showProfileDialog by remember { mutableStateOf(false) }
     var showRulesDialog by remember { mutableStateOf(false) }
-    var showGoogleSignInDialog by remember { mutableStateOf(false) }
 
     val tabs = listOf("Overview & Pay", "My Match", "Full Bracket", "My Profile")
 
@@ -201,21 +200,10 @@ fun PlayerScreen(
             3 -> PlayerProfileTab(
                 user = currentUser,
                 registration = registration,
-                onGoogleSignIn = { showGoogleSignInDialog = true },
                 onLogout = { viewModel.logout() },
                 onEditProfile = { showProfileDialog = true }
             )
         }
-    }
-
-    if (showGoogleSignInDialog) {
-        GoogleSignInChooserDialog(
-            onDismiss = { showGoogleSignInDialog = false },
-            onSelectAccount = { email, name ->
-                viewModel.signInWithGoogle(email = email, fullName = name)
-                showGoogleSignInDialog = false
-            }
-        )
     }
 
     if (showRulesDialog) {
@@ -318,6 +306,15 @@ fun OverviewAndPaymentTab(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
+                            Text(text = "PRIZE POOL", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = tournament.prizePool,
+                                color = StatusEmerald,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                        Column {
                             Text(text = "ENTRY FEE", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Text(
                                 text = "${tournament.entryFee} BDT",
@@ -327,7 +324,7 @@ fun OverviewAndPaymentTab(
                             )
                         }
                         Column {
-                            Text(text = "MATCH DURATION", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "MATCH TIME", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Text(
                                 text = "${tournament.matchDurationMinutes} Mins",
                                 color = Color.White,
@@ -336,9 +333,9 @@ fun OverviewAndPaymentTab(
                             )
                         }
                         Column {
-                            Text(text = "BRACKET FORMAT", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "FORMAT", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Text(
-                                text = "1v1 Knockout",
+                                text = "1v1 KO",
                                 color = StatusPurple,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Black
@@ -1056,12 +1053,10 @@ fun PlayerMatchProfileBox(
 fun PlayerProfileTab(
     user: UserProfile?,
     registration: TournamentRegistration?,
-    onGoogleSignIn: () -> Unit,
     onLogout: () -> Unit,
     onEditProfile: () -> Unit
 ) {
     if (user == null) {
-        // Unauthenticated State: Display large "Sign in with Google" button
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1113,7 +1108,7 @@ fun PlayerProfileTab(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Sign in with Google to view your player credentials, permanent Firebase UID, and live tournament registration status.",
+                            text = "Please authenticate to view your tournament credentials, permanent Firebase UID, and bracket status.",
                             color = Slate400,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center
@@ -1122,43 +1117,23 @@ fun PlayerProfileTab(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Large Clickable "Sign in with Google" Button
-                    Surface(
-                        onClick = onGoogleSignIn,
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color.White,
-                        shadowElevation = 6.dp,
+                    Button(
+                        onClick = onLogout,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonCyan,
+                            contentColor = Slate950
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
-                            .testTag("sign_in_with_google_button")
+                            .height(50.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "G",
-                                color = Color(0xFF4285F4),
-                                fontWeight = FontWeight.Black,
-                                fontSize = 22.sp,
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                            Text(
-                                text = "Sign in with Google",
-                                color = Color(0xFF1E293B),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
+                        Text(
+                            text = "Go to Sign In",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
                     }
-
-                    Text(
-                        text = "Protected by Firebase Auth • 1-click verified login",
-                        color = Slate400.copy(alpha = 0.7f),
-                        fontSize = 11.sp
-                    )
                 }
             }
         }
@@ -1861,247 +1836,4 @@ fun ExpandableRulesDialog(
     )
 }
 
-@Composable
-fun GoogleSignInChooserDialog(
-    onDismiss: () -> Unit,
-    onSelectAccount: (email: String, fullName: String) -> Unit
-) {
-    var customEmail by remember { mutableStateOf("") }
-    var showCustomInput by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = "G",
-                    color = Color(0xFF4285F4),
-                    fontWeight = FontWeight.Black,
-                    fontSize = 24.sp
-                )
-                Column {
-                    Text(
-                        text = "Sign in with Google",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "Dhaka eFootball Open Championship",
-                        color = Slate400,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Select an account to verify role-based access:",
-                    color = Slate400,
-                    fontSize = 12.sp
-                )
-
-                // 1. Organizer Account (ADMIN)
-                Surface(
-                    onClick = {
-                        onSelectAccount("nogorigangjadid@gmail.com", "Jadid Mollik")
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    color = StatusPurple.copy(alpha = 0.15f),
-                    border = BorderStroke(1.5.dp, StatusPurple.copy(alpha = 0.8f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("account_item_organizer")
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = StatusPurple.copy(alpha = 0.3f),
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.AdminPanelSettings,
-                                    contentDescription = null,
-                                    tint = StatusPurple,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "Jadid Mollik",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = StatusPurple
-                                ) {
-                                    Text(
-                                        text = "ADMIN",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 9.sp,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "nogorigangjadid@gmail.com",
-                                color = Slate400,
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = "Organizer • Header switch enabled for Admin Dashboard",
-                                color = StatusPurple,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-
-                // 2. Regular Player Account (PLAYER)
-                Surface(
-                    onClick = {
-                        onSelectAccount("tanvir.player@gmail.com", "Tanvir Hossain")
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    color = Slate800.copy(alpha = 0.6f),
-                    border = BorderStroke(1.dp, Slate700),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("account_item_player")
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = NeonCyan.copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = NeonCyanBright,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "Tanvir Hossain",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = Slate700
-                                ) {
-                                    Text(
-                                        text = "PLAYER",
-                                        color = Slate400,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 9.sp,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "tanvir.player@gmail.com",
-                                color = Slate400,
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = "Standard Participant • Locked to Player View only",
-                                color = Slate400,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                }
-
-                // 3. Custom Google Email Option
-                if (!showCustomInput) {
-                    TextButton(
-                        onClick = { showCustomInput = true },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text(
-                            text = "Or enter custom email to test...",
-                            color = NeonCyanBright,
-                            fontSize = 12.sp
-                        )
-                    }
-                } else {
-                    OutlinedTextField(
-                        value = customEmail,
-                        onValueChange = { customEmail = it },
-                        label = { Text("Google Email", color = Slate400) },
-                        placeholder = { Text("e.g. user@gmail.com", color = Slate600) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = NeonCyanBright,
-                            unfocusedBorderColor = Slate700,
-                            focusedContainerColor = Slate900,
-                            unfocusedContainerColor = Slate900
-                        )
-                    )
-
-                    CyberButton(
-                        text = "Sign In with This Account",
-                        onClick = {
-                            if (customEmail.isNotBlank()) {
-                                onSelectAccount(customEmail.trim(), "Player (${customEmail.substringBefore('@')})")
-                            }
-                        },
-                        enabled = customEmail.contains("@"),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Slate400)
-            }
-        },
-        containerColor = Slate900,
-        shape = RoundedCornerShape(16.dp)
-    )
-}
 

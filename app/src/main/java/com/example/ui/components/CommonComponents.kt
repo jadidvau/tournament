@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CheckCircle
@@ -109,6 +110,21 @@ fun CyberGlassCard(
     ) {
         content()
     }
+}
+
+@Composable
+fun CyberCard(
+    modifier: Modifier = Modifier,
+    borderColor: Color = NeonCyan.copy(alpha = 0.3f),
+    backgroundColor: Color = Slate900.copy(alpha = 0.85f),
+    content: @Composable () -> Unit
+) {
+    CyberGlassCard(
+        modifier = modifier,
+        borderColor = borderColor,
+        backgroundColor = backgroundColor,
+        content = content
+    )
 }
 
 @Composable
@@ -313,7 +329,8 @@ fun EsportsHeader(
     onToggleView: (String) -> Unit,
     notificationCount: Int,
     onOpenNotifications: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLogout: (() -> Unit)? = null
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val glowAlpha by infiniteTransition.animateFloat(
@@ -374,7 +391,7 @@ fun EsportsHeader(
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = "OPEN CHAMPIONSHIP 2026",
+                            text = "CHAMPIONSHIP",
                             color = Slate400,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -383,7 +400,7 @@ fun EsportsHeader(
                     }
                 }
 
-                // Header actions: Admin View Toggle (for Admin) OR Locked Player Badge (for regular users)
+                // Header actions: Admin View Toggle (ONLY for Admin)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isAdminUser) {
                         // Admin Header Switch: Toggle between Player View and Admin Dashboard
@@ -452,37 +469,9 @@ fun EsportsHeader(
                                 }
                             }
                         }
-                    } else {
-                        // Regular user locked to Player View
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = CyanSurface,
-                            border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
-                            modifier = Modifier.testTag("player_locked_badge")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SportsEsports,
-                                    contentDescription = null,
-                                    tint = NeonCyanBright,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "PLAYER VIEW",
-                                    color = NeonCyanBright,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
 
                     // Notifications Icon with badge
                     IconButton(
@@ -508,6 +497,23 @@ fun EsportsHeader(
                                 contentDescription = "Notifications",
                                 tint = Slate200,
                                 modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Optional Logout Icon Button
+                    if (onLogout != null) {
+                        IconButton(
+                            onClick = onLogout,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .testTag("header_logout_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = "Logout",
+                                tint = Slate400,
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }

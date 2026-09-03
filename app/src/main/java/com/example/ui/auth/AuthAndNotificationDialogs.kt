@@ -2,6 +2,8 @@ package com.example.ui.auth
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,12 +55,15 @@ import com.example.data.model.AppNotification
 import com.example.data.model.UserRole
 import com.example.ui.components.CyberButton
 import com.example.ui.components.CyberGlassCard
+import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonCyanBright
 import com.example.ui.theme.Slate400
+import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.Slate950
+import com.example.ui.theme.StatusEmerald
 import com.example.ui.theme.StatusPurple
 
 @Composable
@@ -242,3 +247,250 @@ fun NotificationDialog(
         }
     )
 }
+
+@Composable
+fun AboutDeveloperDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Slate900,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(NeonCyanBright.copy(alpha = 0.15f), CircleShape)
+                        .border(1.dp, NeonCyanBright, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Developer",
+                        tint = NeonCyanBright,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = "About & Developer",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 17.sp
+                    )
+                    Text(
+                        text = "Dhaka eFootball Platform",
+                        color = Slate400,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CyberGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    borderColor = NeonCyanBright.copy(alpha = 0.5f),
+                    backgroundColor = Slate950
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "DEVELOPER INFO",
+                            color = NeonCyanBright,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Jadid Mollik",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            text = "Lead Developer & System Architect",
+                            color = Slate400,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Designed for competitive eFootball esports in Bangladesh with real-time fixtures, automated payment verification, and tournament administration.",
+                            color = Slate400,
+                            fontSize = 11.5.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+
+                CyberGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    borderColor = Slate800,
+                    backgroundColor = Slate950
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "APP SPECIFICATION",
+                            color = NeonCyanBright,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Dhaka eFootball Championship System",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Built for ultimate usage, persistent sessions, automated bKash/Nagad fee checks, and dynamic tournament bracket trees.",
+                            color = Slate400,
+                            fontSize = 11.5.sp,
+                            lineHeight = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = StatusPurple.copy(alpha = 0.2f),
+                                border = BorderStroke(1.dp, StatusPurple.copy(alpha = 0.5f))
+                            ) {
+                                Text(
+                                    text = "Version 1.0",
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = StatusEmerald.copy(alpha = 0.2f),
+                                border = BorderStroke(1.dp, StatusEmerald.copy(alpha = 0.5f))
+                            ) {
+                                Text(
+                                    text = "Ultimate Edition",
+                                    color = StatusEmerald,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("close_about_dialog_btn")
+            ) {
+                Text("CLOSE", color = NeonCyanBright, fontWeight = FontWeight.Bold)
+            }
+        }
+    )
+}
+
+@Composable
+fun DeveloperBottomBar(
+    onOpenAbout: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Slate950,
+        border = BorderStroke(1.dp, Slate800.copy(alpha = 0.8f)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenAbout() }
+                .padding(horizontal = 14.dp, vertical = 7.dp)
+                .testTag("developer_bottom_bar"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(NeonCyanBright.copy(alpha = 0.15f), CircleShape)
+                        .border(1.dp, NeonCyanBright.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Developer",
+                        tint = NeonCyanBright,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Developer: ",
+                            color = Slate400,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "Jadid Mollik",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp
+                        )
+                    }
+                    Text(
+                        text = "Dhaka eFootball Platform",
+                        color = Slate500,
+                        fontSize = 9.5.sp
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = NeonCyan.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                onClick = onOpenAbout,
+                modifier = Modifier.testTag("open_about_btn")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = NeonCyanBright,
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "ABOUT INFO",
+                        color = NeonCyanBright,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 9.5.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+    }
+}
+

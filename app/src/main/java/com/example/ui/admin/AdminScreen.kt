@@ -3,6 +3,7 @@ package com.example.ui.admin
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,12 +33,19 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
@@ -46,13 +55,19 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ScrollableTabRow
@@ -60,7 +75,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -74,6 +88,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -82,37 +97,24 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.MatchPlayer
 import com.example.data.model.MatchStatus
+import com.example.data.model.ORGANIZER_EMAIL
 import com.example.data.model.PaymentMethod
 import com.example.data.model.RegistrationStatus
 import com.example.data.model.TournamentInfo
 import com.example.data.model.TournamentMatch
 import com.example.data.model.TournamentRegistration
 import com.example.data.model.TournamentRules
-import com.example.data.model.UserProfile
 import com.example.data.model.UserRole
 import com.example.ui.bracket.BracketViewer
 import com.example.ui.components.CyberButton
 import com.example.ui.components.CyberGlassCard
+import com.example.ui.components.MatchStatusBadge
 import com.example.ui.components.StatusBadge
-import com.example.ui.theme.CyanDark
-import com.example.ui.theme.CyanGlow
-import com.example.ui.theme.CyanSurface
-import com.example.ui.theme.GoldCrown
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonCyanBright
-import com.example.ui.theme.Slate200
-import com.example.ui.theme.Slate400
-import com.example.ui.theme.Slate600
-import com.example.ui.theme.Slate700
-import com.example.ui.theme.Slate800
-import com.example.ui.theme.Slate900
-import com.example.ui.theme.Slate950
-import com.example.ui.theme.StatusAmber
-import com.example.ui.theme.StatusEmerald
-import com.example.ui.theme.StatusPurple
-import com.example.ui.theme.StatusRose
+import com.example.ui.theme.*
 import com.example.ui.viewmodel.TournamentViewModel
+import java.util.UUID
 
 @Composable
 fun AdminScreen(
@@ -132,19 +134,39 @@ fun AdminScreen(
     val rules by viewModel.rules.collectAsState()
 
     var selectedAdminTab by remember { mutableIntStateOf(0) }
+
+    // Dialog States
     var selectedMatchForEdit by remember { mutableStateOf<TournamentMatch?>(null) }
     var rejectDialogRegistration by remember { mutableStateOf<TournamentRegistration?>(null) }
+    var editRegistrationDialog by remember { mutableStateOf<TournamentRegistration?>(null) }
+    var deleteConfirmRegistration by remember { mutableStateOf<TournamentRegistration?>(null) }
+    var showAddParticipantDialog by remember { mutableStateOf(false) }
 
-    val adminTabs = listOf("Queue ($pendingCount)", "Live Bracket", "Edit Rules", "Settings", "Stats")
+    var showAddFixtureDialog by remember { mutableStateOf(false) }
+    var rescheduleMatchDialog by remember { mutableStateOf<TournamentMatch?>(null) }
+    var advanceWinnerMatchDialog by remember { mutableStateOf<TournamentMatch?>(null) }
+    var deleteConfirmMatch by remember { mutableStateOf<TournamentMatch?>(null) }
+    var showResetBracketConfirm by remember { mutableStateOf(false) }
+
+    val isDesignatedAdmin = currentUser?.email?.trim().equals(ORGANIZER_EMAIL, ignoreCase = true) == true && currentUser?.role == UserRole.ADMIN
 
     // Admin Auth Gatekeeper Check
-    if (currentUser?.role != UserRole.ADMIN) {
+    if (!isDesignatedAdmin) {
         AdminUnauthorizedGatekeeper(
             onReturnToPlayer = onReturnToPlayer,
             modifier = modifier
         )
         return
     }
+
+    val adminTabs = listOf(
+        "Participants ($approvedCount)",
+        "Bracket Control",
+        "Match Management (${matches.size})",
+        "Edit Rules",
+        "Settings",
+        "Stats"
+    )
 
     Column(
         modifier = modifier
@@ -183,34 +205,53 @@ fun AdminScreen(
         }
 
         when (selectedAdminTab) {
-            0 -> RegistrationsQueueTab(
+            0 -> ParticipantRosterTab(
                 registrations = registrations,
                 onApprove = { viewModel.approveRegistration(it.id) },
                 onReject = { rejectDialogRegistration = it },
-                onGenerateBracket = { viewModel.generateBracket() },
-                approvedCount = approvedCount
+                onEdit = { editRegistrationDialog = it },
+                onDelete = { deleteConfirmRegistration = it },
+                onAddNewParticipant = { showAddParticipantDialog = true },
+                onSeedBracket = { viewModel.generateBracket() }
             )
-            1 -> LiveBracketAdminTab(
+            1 -> BracketControlTab(
                 tournament = tournament,
                 matches = matches,
                 selectedRound = selectedRound,
                 onSelectRound = { viewModel.setRoundFilter(it) },
                 onMatchClick = { selectedMatchForEdit = it },
-                onGenerateBracket = { viewModel.generateBracket() }
+                onSeedBracket = { viewModel.generateBracket() },
+                onResetBracket = { showResetBracketConfirm = true }
             )
-            2 -> EditRulesAdminTab(
+            2 -> MatchManagementTab(
+                matches = matches,
+                onAddFixture = { showAddFixtureDialog = true },
+                onEditMatch = { selectedMatchForEdit = it },
+                onRescheduleMatch = { rescheduleMatchDialog = it },
+                onAdvanceWinner = { advanceWinnerMatchDialog = it },
+                onDeleteMatch = { deleteConfirmMatch = it }
+            )
+            3 -> EditRulesAdminTab(
                 rules = rules,
                 onSaveAndBroadcast = { updatedRules ->
                     viewModel.updateRules(updatedRules)
                 }
             )
-            3 -> TournamentSettingsTab(
+            4 -> TournamentSettingsTab(
                 tournament = tournament,
-                onSaveSettings = { title, fee, bkash, nagad, isOpen, duration ->
-                    viewModel.updateTournamentSettings(title, fee, bkash, nagad, isOpen, duration)
+                onSaveSettings = { title, fee, bkash, nagad, isOpen, duration, prizePool ->
+                    viewModel.updateTournamentSettings(
+                        title = title,
+                        entryFee = fee,
+                        prizePool = prizePool,
+                        bkashNumber = bkash,
+                        nagadNumber = nagad,
+                        isRegistrationOpen = isOpen,
+                        matchDurationMinutes = duration
+                    )
                 }
             )
-            4 -> AdminStatsTab(
+            5 -> AdminStatsTab(
                 registrations = registrations,
                 tournament = tournament,
                 pendingCount = pendingCount,
@@ -221,7 +262,83 @@ fun AdminScreen(
         }
     }
 
-    // Match Score & Status Editor Dialog
+    // --- DIALOGS ---
+
+    // 1. Add Participant Manually Dialog
+    if (showAddParticipantDialog) {
+        AddParticipantDialog(
+            defaultFee = tournament.entryFee,
+            onDismiss = { showAddParticipantDialog = false },
+            onConfirm = { newReg ->
+                viewModel.addParticipant(newReg)
+                showAddParticipantDialog = false
+            }
+        )
+    }
+
+    // 2. Edit Participant Dialog
+    if (editRegistrationDialog != null) {
+        EditParticipantDialog(
+            registration = editRegistrationDialog!!,
+            onDismiss = { editRegistrationDialog = null },
+            onSave = { updated ->
+                viewModel.updateRegistration(updated)
+                editRegistrationDialog = null
+            }
+        )
+    }
+
+    // 3. Delete Participant Confirm Dialog
+    if (deleteConfirmRegistration != null) {
+        AlertDialog(
+            onDismissRequest = { deleteConfirmRegistration = null },
+            containerColor = Slate900,
+            title = {
+                Text(
+                    text = "Delete Participant Entry?",
+                    color = StatusRose,
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to permanently delete player ${deleteConfirmRegistration!!.fullName} (TrxID: ${deleteConfirmRegistration!!.trxId})? This action cannot be undone.",
+                    color = Slate200,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteRegistration(deleteConfirmRegistration!!.id)
+                        deleteConfirmRegistration = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRose)
+                ) {
+                    Text("DELETE", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteConfirmRegistration = null }) {
+                    Text("CANCEL", color = Slate400)
+                }
+            }
+        )
+    }
+
+    // 4. Add Match Fixture Dialog
+    if (showAddFixtureDialog) {
+        AddMatchFixtureDialog(
+            registrations = registrations.filter { it.status == RegistrationStatus.JOINED },
+            onDismiss = { showAddFixtureDialog = false },
+            onAdd = { match ->
+                viewModel.addMatchFixture(match)
+                showAddFixtureDialog = false
+            }
+        )
+    }
+
+    // 5. Match Score & Status Editor Dialog
     if (selectedMatchForEdit != null) {
         MatchScoreEditDialog(
             match = selectedMatchForEdit!!,
@@ -233,7 +350,107 @@ fun AdminScreen(
         )
     }
 
-    // Rejection Reason Dialog
+    // 6. Reschedule Match Dialog
+    if (rescheduleMatchDialog != null) {
+        RescheduleMatchDialog(
+            match = rescheduleMatchDialog!!,
+            onDismiss = { rescheduleMatchDialog = null },
+            onReschedule = { newTime, newRound ->
+                viewModel.rescheduleMatch(rescheduleMatchDialog!!.id, newTime, newRound)
+                rescheduleMatchDialog = null
+            }
+        )
+    }
+
+    // 7. Advance Winner Dialog
+    if (advanceWinnerMatchDialog != null) {
+        AdvanceWinnerDialog(
+            match = advanceWinnerMatchDialog!!,
+            onDismiss = { advanceWinnerMatchDialog = null },
+            onAdvance = { winnerId, p1Score, p2Score ->
+                viewModel.advancePlayer(advanceWinnerMatchDialog!!.id, winnerId, p1Score, p2Score)
+                advanceWinnerMatchDialog = null
+            }
+        )
+    }
+
+    // 8. Delete Match Confirm Dialog
+    if (deleteConfirmMatch != null) {
+        AlertDialog(
+            onDismissRequest = { deleteConfirmMatch = null },
+            containerColor = Slate900,
+            title = {
+                Text(
+                    text = "Delete Match Fixture?",
+                    color = StatusRose,
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove match (${deleteConfirmMatch!!.player1?.name ?: "TBD"} vs ${deleteConfirmMatch!!.player2?.name ?: "TBD"}) at ${deleteConfirmMatch!!.startTime}?",
+                    color = Slate200,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteMatchFixture(deleteConfirmMatch!!.id)
+                        deleteConfirmMatch = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRose)
+                ) {
+                    Text("REMOVE", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteConfirmMatch = null }) {
+                    Text("CANCEL", color = Slate400)
+                }
+            }
+        )
+    }
+
+    // 9. Reset Bracket Confirm Dialog
+    if (showResetBracketConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetBracketConfirm = false },
+            containerColor = Slate900,
+            title = {
+                Text(
+                    text = "Reset Tournament Bracket?",
+                    color = StatusRose,
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Text(
+                    text = "This will erase all generated match fixtures and reset the tournament draw. All approved participants will remain safely in the roster so you can re-seed at any time.",
+                    color = Slate200,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.resetBracket()
+                        showResetBracketConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRose)
+                ) {
+                    Text("RESET BRACKET", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetBracketConfirm = false }) {
+                    Text("CANCEL", color = Slate400)
+                }
+            }
+        )
+    }
+
+    // 10. Rejection Reason Dialog
     if (rejectDialogRegistration != null) {
         RejectReasonDialog(
             registration = rejectDialogRegistration!!,
@@ -286,7 +503,7 @@ fun AdminUnauthorizedGatekeeper(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "This dashboard is locked to tournament organizer nogorigangjadid@gmail.com only. Regular accounts are restricted to Player View.",
+            text = "This dashboard is locked to tournament organizer $ORGANIZER_EMAIL only. Regular accounts are restricted to Player View.",
             color = Slate400,
             fontSize = 13.sp,
             textAlign = TextAlign.Center
@@ -303,16 +520,42 @@ fun AdminUnauthorizedGatekeeper(
     }
 }
 
+// -------------------------------------------------------------
+// TAB 0: PARTICIPANT ROSTER (Search, Add, Approve, Edit, Delete)
+// -------------------------------------------------------------
 @Composable
-fun RegistrationsQueueTab(
+fun ParticipantRosterTab(
     registrations: List<TournamentRegistration>,
     onApprove: (TournamentRegistration) -> Unit,
     onReject: (TournamentRegistration) -> Unit,
-    onGenerateBracket: () -> Unit,
-    approvedCount: Int
+    onEdit: (TournamentRegistration) -> Unit,
+    onDelete: (TournamentRegistration) -> Unit,
+    onAddNewParticipant: () -> Unit,
+    onSeedBracket: () -> Unit
 ) {
-    val pendingList = registrations.filter { it.status == RegistrationStatus.PENDING }
-    val reviewedList = registrations.filter { it.status != RegistrationStatus.PENDING }
+    var searchQuery by remember { mutableStateOf("") }
+    var statusFilter by remember { mutableStateOf("ALL") } // ALL, PENDING, APPROVED, REJECTED
+
+    val filteredList = registrations.filter { reg ->
+        val matchesSearch = searchQuery.isBlank() ||
+                reg.fullName.contains(searchQuery, ignoreCase = true) ||
+                reg.inGameUsername.contains(searchQuery, ignoreCase = true) ||
+                reg.inGameId.contains(searchQuery, ignoreCase = true) ||
+                reg.trxId.contains(searchQuery, ignoreCase = true) ||
+                reg.phoneNumber.contains(searchQuery, ignoreCase = true)
+
+        val matchesStatus = when (statusFilter) {
+            "PENDING" -> reg.status == RegistrationStatus.PENDING
+            "APPROVED" -> reg.status == RegistrationStatus.JOINED
+            "REJECTED" -> reg.status == RegistrationStatus.REJECTED
+            else -> true
+        }
+
+        matchesSearch && matchesStatus
+    }
+
+    val approvedCount = registrations.count { it.status == RegistrationStatus.JOINED }
+    val pendingCount = registrations.count { it.status == RegistrationStatus.PENDING }
 
     LazyColumn(
         modifier = Modifier
@@ -321,7 +564,7 @@ fun RegistrationsQueueTab(
         contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Quick Action Bar: Generate Matchmaking Bracket
+        // Quick Action Bar: Add Participant & Seed Bracket
         item {
             CyberGlassCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -337,40 +580,105 @@ fun RegistrationsQueueTab(
                 ) {
                     Column {
                         Text(
-                            text = "APPROVED PLAYERS: $approvedCount",
+                            text = "ROSTER: ${registrations.size} ($approvedCount Approved)",
                             color = StatusEmerald,
                             fontWeight = FontWeight.Black,
                             fontSize = 13.sp
                         )
                         Text(
-                            text = "Ready to generate 1v1 bracket",
-                            color = Slate400,
+                            text = "$pendingCount pending verifications",
+                            color = if (pendingCount > 0) StatusAmber else Slate400,
                             fontSize = 11.sp
                         )
                     }
 
-                    CyberButton(
-                        text = "Seed Bracket",
-                        onClick = onGenerateBracket,
-                        icon = Icons.Default.AccountTree,
-                        testTag = "generate_bracket_action_btn"
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = onAddNewParticipant,
+                            colors = ButtonDefaults.buttonColors(containerColor = CyanDark),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.testTag("add_participant_btn")
+                        ) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, tint = NeonCyanBright, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Player", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        CyberButton(
+                            text = "Seed",
+                            onClick = onSeedBracket,
+                            icon = Icons.Default.AccountTree,
+                            testTag = "generate_bracket_action_btn"
+                        )
+                    }
                 }
             }
         }
 
-        // Section: Pending Verifications
+        // Search Bar & Filter Chips
         item {
-            Text(
-                text = "PENDING PAYMENT VERIFICATIONS (${pendingList.size})",
-                color = StatusAmber,
-                fontWeight = FontWeight.Black,
-                fontSize = 12.sp,
-                letterSpacing = 1.sp
-            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search by Name, In-Game Tag, ID, Phone, or TrxID...", color = Slate500, fontSize = 12.sp) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = NeonCyanBright)
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = Slate400)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("search_participant_input"),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Slate200,
+                        focusedBorderColor = NeonCyan,
+                        unfocusedBorderColor = Slate700
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("ALL", "PENDING", "APPROVED", "REJECTED").forEach { filterKey ->
+                        val isSelected = statusFilter == filterKey
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { statusFilter = filterKey },
+                            label = {
+                                Text(
+                                    text = when (filterKey) {
+                                        "PENDING" -> "Pending ($pendingCount)"
+                                        "APPROVED" -> "Approved ($approvedCount)"
+                                        "REJECTED" -> "Rejected"
+                                        else -> "All (${registrations.size})"
+                                    },
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = StatusPurple.copy(alpha = 0.3f),
+                                selectedLabelColor = StatusPurple
+                            )
+                        )
+                    }
+                }
+            }
         }
 
-        if (pendingList.isEmpty()) {
+        // Participant Roster Cards
+        if (filteredList.isEmpty()) {
             item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -378,7 +686,7 @@ fun RegistrationsQueueTab(
                     color = Slate900
                 ) {
                     Text(
-                        text = "No pending payments in the queue. All submissions verified!",
+                        text = "No participants found matching your criteria.",
                         color = Slate400,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center,
@@ -387,49 +695,40 @@ fun RegistrationsQueueTab(
                 }
             }
         } else {
-            items(pendingList, key = { it.id }) { reg ->
-                RegistrationQueueCard(
+            items(filteredList, key = { it.id }) { reg ->
+                ParticipantRosterCard(
                     registration = reg,
                     onApprove = { onApprove(reg) },
-                    onReject = { onReject(reg) }
+                    onReject = { onReject(reg) },
+                    onEdit = { onEdit(reg) },
+                    onDelete = { onDelete(reg) }
                 )
-            }
-        }
-
-        // Section: Already Reviewed
-        if (reviewedList.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "RECENTLY REVIEWED (${reviewedList.size})",
-                    color = Slate400,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 12.sp,
-                    letterSpacing = 1.sp
-                )
-            }
-
-            items(reviewedList, key = { it.id }) { reg ->
-                ReviewedRegistrationCard(registration = reg)
             }
         }
     }
 }
 
 @Composable
-fun RegistrationQueueCard(
+fun ParticipantRosterCard(
     registration: TournamentRegistration,
     onApprove: () -> Unit,
-    onReject: () -> Unit
+    onReject: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val methodColor = if (registration.paymentMethod == PaymentMethod.bKash) Color(0xFFE2136E) else Color(0xFFF7941D)
 
     CyberGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        borderColor = StatusAmber.copy(alpha = 0.5f),
+        borderColor = when (registration.status) {
+            RegistrationStatus.PENDING -> StatusAmber.copy(alpha = 0.6f)
+            RegistrationStatus.JOINED -> StatusEmerald.copy(alpha = 0.5f)
+            RegistrationStatus.REJECTED -> StatusRose.copy(alpha = 0.5f)
+        },
         backgroundColor = Slate900
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Top Row: Player Name + Status Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -440,32 +739,27 @@ fun RegistrationQueueCard(
                         text = registration.fullName,
                         color = Color.White,
                         fontWeight = FontWeight.Black,
-                        fontSize = 16.sp
+                        fontSize = 15.sp
                     )
                     Text(
                         text = "eFootball: @${registration.inGameUsername} (ID: ${registration.inGameId})",
                         color = NeonCyanBright,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Phone: ${registration.phoneNumber}",
+                        color = Slate400,
+                        fontSize = 11.sp
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = methodColor.copy(alpha = 0.2f),
-                    border = BorderStroke(1.dp, methodColor)
-                ) {
-                    Text(
-                        text = registration.paymentMethod.name,
-                        color = methodColor,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
+                StatusBadge(status = registration.status)
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
+            // Payment TrxID Box
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = Slate950,
@@ -479,14 +773,29 @@ fun RegistrationQueueCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(text = "TRANSACTION ID (TrxID)", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = registration.trxId,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 14.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = methodColor.copy(alpha = 0.2f),
+                                border = BorderStroke(1.dp, methodColor)
+                            ) {
+                                Text(
+                                    text = registration.paymentMethod.name,
+                                    color = methodColor,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 10.sp,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "TrxID: ${registration.trxId}",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                     Text(
                         text = "${registration.feeAmount} BDT",
@@ -497,110 +806,133 @@ fun RegistrationQueueCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Action Buttons
+            // Action Toolbar (Approve, Reject, Edit, Delete)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Reject Button
-                Button(
-                    onClick = onReject,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
-                        .testTag("reject_reg_btn_${registration.id}"),
-                    colors = ButtonDefaults.buttonColors(containerColor = StatusRose.copy(alpha = 0.15f)),
-                    border = BorderStroke(1.dp, StatusRose),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = StatusRose, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("REJECT", color = StatusRose, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                if (registration.status == RegistrationStatus.PENDING) {
+                    // Quick Approve
+                    Button(
+                        onClick = onApprove,
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusEmerald),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Slate950, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Approve", color = Slate950, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                    }
+
+                    // Quick Reject
+                    OutlinedButton(
+                        onClick = onReject,
+                        border = BorderStroke(1.dp, StatusRose),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = StatusRose, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Reject", color = StatusRose, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
                 }
 
-                // Approve Button
-                Button(
-                    onClick = onApprove,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
-                        .testTag("approve_reg_btn_${registration.id}"),
-                    colors = ButtonDefaults.buttonColors(containerColor = StatusEmerald),
-                    shape = RoundedCornerShape(10.dp)
+                // Edit Player & TrxID
+                OutlinedButton(
+                    onClick = onEdit,
+                    border = BorderStroke(1.dp, Slate700),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(38.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = Slate950, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("APPROVE", color = Slate950, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = NeonCyanBright, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Edit", color = Slate200, fontSize = 11.sp)
+                }
+
+                // Delete Entry
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = StatusRose.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
                 }
             }
         }
     }
 }
 
+// -------------------------------------------------------------
+// TAB 1: BRACKET CONTROL (Seed, Reset, Advance Winner, Tree)
+// -------------------------------------------------------------
 @Composable
-fun ReviewedRegistrationCard(registration: TournamentRegistration) {
-    CyberGlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        borderColor = Slate800,
-        backgroundColor = Slate900.copy(alpha = 0.5f)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    text = registration.fullName,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
-                Text(
-                    text = "${registration.paymentMethod} • TrxID: ${registration.trxId}",
-                    color = Slate400,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            StatusBadge(status = registration.status)
-        }
-    }
-}
-
-@Composable
-fun LiveBracketAdminTab(
+fun BracketControlTab(
     tournament: TournamentInfo,
     matches: List<TournamentMatch>,
     selectedRound: Int,
     onSelectRound: (Int) -> Unit,
     onMatchClick: (TournamentMatch) -> Unit,
-    onGenerateBracket: () -> Unit
+    onSeedBracket: () -> Unit,
+    onResetBracket: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
+        CyberGlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(14.dp),
+            borderColor = StatusPurple.copy(alpha = 0.5f),
+            backgroundColor = Slate900
         ) {
-            Text(
-                text = "CLICK ANY MATCH TO EDIT LIVE SCORE ✎",
-                color = NeonCyanBright,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp
-            )
-
-            TextButton(
-                onClick = onGenerateBracket,
-                modifier = Modifier.testTag("reseed_bracket_btn")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("RE-SEED DRAW", color = StatusPurple, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                Column {
+                    Text(
+                        text = "BRACKET CONTROLS",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = "Total Fixtures: ${matches.size} | Tap match to edit score",
+                        color = Slate400,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onResetBracket,
+                        border = BorderStroke(1.dp, StatusRose),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("reset_bracket_btn")
+                    ) {
+                        Icon(Icons.Default.RestartAlt, contentDescription = null, tint = StatusRose, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Reset", color = StatusRose, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = onSeedBracket,
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusPurple),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("reseed_bracket_btn")
+                    ) {
+                        Icon(Icons.Default.AccountTree, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Seed Draw", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
 
@@ -615,12 +947,518 @@ fun LiveBracketAdminTab(
     }
 }
 
+// -------------------------------------------------------------
+// TAB 2: MATCH MANAGEMENT (Add, Reschedule, Edit, Delete, Advance)
+// -------------------------------------------------------------
+@Composable
+fun MatchManagementTab(
+    matches: List<TournamentMatch>,
+    onAddFixture: () -> Unit,
+    onEditMatch: (TournamentMatch) -> Unit,
+    onRescheduleMatch: (TournamentMatch) -> Unit,
+    onAdvanceWinner: (TournamentMatch) -> Unit,
+    onDeleteMatch: (TournamentMatch) -> Unit
+) {
+    var filterRound by remember { mutableIntStateOf(0) } // 0 = All
+
+    val filteredMatches = if (filterRound == 0) matches else matches.filter { it.round == filterRound }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Header & Add Fixture Button
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "MATCH FIXTURES & SCHEDULE",
+                        color = NeonCyanBright,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "Manage schedules, live scores, and winner advancements",
+                        color = Slate400,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Button(
+                    onClick = onAddFixture,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.testTag("admin_add_fixture_btn")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Slate950, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Fixture", color = Slate950, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Round Selector Chips
+        item {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = filterRound == 0,
+                        onClick = { filterRound = 0 },
+                        label = { Text("All Rounds (${matches.size})", fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = StatusPurple.copy(alpha = 0.3f), selectedLabelColor = StatusPurple)
+                    )
+                }
+                listOf(1 to "Round 1", 2 to "Quarter-Finals", 3 to "Semi-Finals", 4 to "Grand Final").forEach { (r, name) ->
+                    val count = matches.count { it.round == r }
+                    item {
+                        FilterChip(
+                            selected = filterRound == r,
+                            onClick = { filterRound = r },
+                            label = { Text("$name ($count)", fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = StatusPurple.copy(alpha = 0.3f), selectedLabelColor = StatusPurple)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (filteredMatches.isEmpty()) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Slate900
+                ) {
+                    Text(
+                        text = "No match fixtures found in this round. Tap 'Add Fixture' or 'Seed Bracket' to generate matches.",
+                        color = Slate400,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+            }
+        } else {
+            items(filteredMatches, key = { it.id }) { match ->
+                AdminMatchFixtureCard(
+                    match = match,
+                    onEdit = { onEditMatch(match) },
+                    onReschedule = { onRescheduleMatch(match) },
+                    onAdvance = { onAdvanceWinner(match) },
+                    onDelete = { onDeleteMatch(match) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminMatchFixtureCard(
+    match: TournamentMatch,
+    onEdit: () -> Unit,
+    onReschedule: () -> Unit,
+    onAdvance: () -> Unit,
+    onDelete: () -> Unit
+) {
+    CyberGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        borderColor = when (match.status) {
+            MatchStatus.LIVE -> StatusRose
+            MatchStatus.COMPLETED -> StatusEmerald.copy(alpha = 0.6f)
+            else -> Slate700
+        },
+        backgroundColor = Slate900
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header: Round, Match #, Time, Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = StatusPurple.copy(alpha = 0.2f),
+                        border = BorderStroke(1.dp, StatusPurple.copy(alpha = 0.5f))
+                    ) {
+                        Text(
+                            text = "R${match.round} M#${match.matchIndex}",
+                            color = StatusPurple,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = match.startTime,
+                        color = Slate300,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp
+                    )
+                }
+
+                MatchStatusBadge(status = match.status)
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Score Board
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Slate950,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    // Player 1
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (match.winnerId != null && match.winnerId == match.player1?.id) {
+                                Icon(Icons.Default.MilitaryTech, contentDescription = "Winner", tint = StatusGold, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            Text(
+                                text = match.player1?.name ?: "TBD",
+                                color = if (match.player1 != null) Color.White else Slate500,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Text(
+                            text = match.player1Score.toString(),
+                            color = NeonCyanBright,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp
+                        )
+                    }
+
+                    Divider(color = Slate800, modifier = Modifier.padding(vertical = 6.dp))
+
+                    // Player 2
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (match.winnerId != null && match.winnerId == match.player2?.id) {
+                                Icon(Icons.Default.MilitaryTech, contentDescription = "Winner", tint = StatusGold, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            Text(
+                                text = match.player2?.name ?: "TBD",
+                                color = if (match.player2 != null) Color.White else Slate500,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Text(
+                            text = match.player2Score.toString(),
+                            color = NeonCyanBright,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Action Buttons: Edit Score, Reschedule, Advance Winner, Delete
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Edit Scores
+                Button(
+                    onClick = onEdit,
+                    colors = ButtonDefaults.buttonColors(containerColor = CyanDark),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f).height(36.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = NeonCyanBright, modifier = Modifier.size(13.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("Score", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // Reschedule Time
+                OutlinedButton(
+                    onClick = onReschedule,
+                    border = BorderStroke(1.dp, Slate700),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f).height(36.dp)
+                ) {
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = Slate300, modifier = Modifier.size(13.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("Time", color = Slate200, fontSize = 11.sp)
+                }
+
+                // Advance Winner
+                if (match.status != MatchStatus.COMPLETED && match.player1 != null && match.player2 != null) {
+                    Button(
+                        onClick = onAdvance,
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusEmerald),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f).height(36.dp)
+                    ) {
+                        Text("Advance", color = Slate950, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                    }
+                }
+
+                // Delete Fixture
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = StatusRose.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// TAB 3: EDIT RULES (Firestore settings/rules + Broadcast)
+// -------------------------------------------------------------
+@Composable
+fun EditRulesAdminTab(
+    rules: TournamentRules,
+    onSaveAndBroadcast: (TournamentRules) -> Unit
+) {
+    var matchDuration by remember(rules) { mutableStateOf(rules.matchDuration) }
+    var extraTimePk by remember(rules) { mutableStateOf(rules.extraTimePk) }
+    var substitutions by remember(rules) { mutableStateOf(rules.substitutions) }
+    var rematchRule by remember(rules) { mutableStateOf(rules.rematchRule) }
+    var walkoverGrace by remember(rules) { mutableStateOf(rules.walkoverGrace) }
+
+    var matchSettingsDetails by remember(rules) { mutableStateOf(rules.matchSettingsDetails) }
+    var squadFairPlayDetails by remember(rules) { mutableStateOf(rules.squadFairPlayDetails) }
+    var networkDisputesDetails by remember(rules) { mutableStateOf(rules.networkDisputesDetails) }
+    var scoreReportingDetails by remember(rules) { mutableStateOf(rules.scoreReportingDetails) }
+    var punctualityConductDetails by remember(rules) { mutableStateOf(rules.punctualityConductDetails) }
+    var organizerContact by remember(rules) { mutableStateOf(rules.organizerContact) }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            CyberGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                borderColor = StatusPurple.copy(alpha = 0.5f),
+                backgroundColor = Slate900
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "TOURNAMENT RULES & REGULATIONS",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "Firestore doc: settings/rules • Real-time broadcast to all players",
+                        color = NeonCyanBright,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "QUICK BADGES (Live on Player Modal)",
+                        color = Slate400,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = matchDuration,
+                            onValueChange = { matchDuration = it },
+                            label = { Text("Match Duration", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                        )
+
+                        OutlinedTextField(
+                            value = extraTimePk,
+                            onValueChange = { extraTimePk = it },
+                            label = { Text("Extra Time & PK", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = substitutions,
+                            onValueChange = { substitutions = it },
+                            label = { Text("Substitutions", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                        )
+
+                        OutlinedTextField(
+                            value = walkoverGrace,
+                            onValueChange = { walkoverGrace = it },
+                            label = { Text("Walkover Grace", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = rematchRule,
+                        onValueChange = { rematchRule = it },
+                        label = { Text("Disconnection Rematch Rule", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text(
+                        text = "DETAILED REGULATION CLAUSES (2-COLUMN CARDS)",
+                        color = Slate400,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = matchSettingsDetails,
+                        onValueChange = { matchSettingsDetails = it },
+                        label = { Text("Match Settings Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = squadFairPlayDetails,
+                        onValueChange = { squadFairPlayDetails = it },
+                        label = { Text("Squad & Fair Play Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = networkDisputesDetails,
+                        onValueChange = { networkDisputesDetails = it },
+                        label = { Text("Network & Disconnections Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = scoreReportingDetails,
+                        onValueChange = { scoreReportingDetails = it },
+                        label = { Text("Score Reporting & Screenshot Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = punctualityConductDetails,
+                        onValueChange = { punctualityConductDetails = it },
+                        label = { Text("Punctuality, Walkover & Conduct Clause", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = organizerContact,
+                        onValueChange = { organizerContact = it },
+                        label = { Text("Official Organizer Contact & Support", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    CyberButton(
+                        text = "Save & Broadcast to Firestore",
+                        onClick = {
+                            val updated = rules.copy(
+                                matchDuration = matchDuration.trim(),
+                                extraTimePk = extraTimePk.trim(),
+                                substitutions = substitutions.trim(),
+                                rematchRule = rematchRule.trim(),
+                                walkoverGrace = walkoverGrace.trim(),
+                                matchSettingsDetails = matchSettingsDetails.trim(),
+                                squadFairPlayDetails = squadFairPlayDetails.trim(),
+                                networkDisputesDetails = networkDisputesDetails.trim(),
+                                scoreReportingDetails = scoreReportingDetails.trim(),
+                                punctualityConductDetails = punctualityConductDetails.trim(),
+                                organizerContact = organizerContact.trim()
+                            )
+                            onSaveAndBroadcast(updated)
+                        },
+                        icon = Icons.AutoMirrored.Filled.Send,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("save_broadcast_rules_btn")
+                    )
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// TAB 4: TOURNAMENT SETTINGS (Title, Fee, Prize Pool, bKash, Nagad)
+// -------------------------------------------------------------
 @Composable
 fun TournamentSettingsTab(
     tournament: TournamentInfo,
-    onSaveSettings: (String, Int, String, String, Boolean, Int) -> Unit
+    onSaveSettings: (String, Int, String, String, Boolean, Int, String) -> Unit
 ) {
     var title by remember(tournament) { mutableStateOf(tournament.title) }
+    var prizePool by remember(tournament) { mutableStateOf(tournament.prizePool) }
     var fee by remember(tournament) { mutableStateOf(tournament.entryFee.toString()) }
     var bkash by remember(tournament) { mutableStateOf(tournament.bkashNumber) }
     var nagad by remember(tournament) { mutableStateOf(tournament.nagadNumber) }
@@ -646,6 +1484,11 @@ fun TournamentSettingsTab(
                         fontWeight = FontWeight.Black,
                         fontSize = 16.sp
                     )
+                    Text(
+                        text = "Synced directly to Firebase Firestore tournaments/dhaka_efootball_2026",
+                        color = NeonCyanBright,
+                        fontSize = 11.sp
+                    )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -654,12 +1497,18 @@ fun TournamentSettingsTab(
                         onValueChange = { title = it },
                         label = { Text("Championship Title", color = Slate400) },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = prizePool,
+                        onValueChange = { prizePool = it },
+                        label = { Text("Prize Pool (BDT)", color = Slate400) },
+                        placeholder = { Text("e.g. 15,000 BDT") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -674,12 +1523,7 @@ fun TournamentSettingsTab(
                             label = { Text("Entry Fee (BDT)", color = Slate400) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
                         )
 
                         OutlinedTextField(
@@ -688,12 +1532,7 @@ fun TournamentSettingsTab(
                             label = { Text("Match Duration (Mins)", color = Slate400) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
                         )
                     }
 
@@ -704,12 +1543,7 @@ fun TournamentSettingsTab(
                         onValueChange = { bkash = it },
                         label = { Text("bKash Personal Number", color = Slate400) },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -719,12 +1553,7 @@ fun TournamentSettingsTab(
                         onValueChange = { nagad = it },
                         label = { Text("Nagad Personal Number", color = Slate400) },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -757,11 +1586,11 @@ fun TournamentSettingsTab(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     CyberButton(
-                        text = "Save Settings",
+                        text = "Save Settings & Sync to Firestore",
                         onClick = {
                             val parsedFee = fee.toIntOrNull() ?: 100
                             val parsedDur = duration.toIntOrNull() ?: 10
-                            onSaveSettings(title, parsedFee, bkash, nagad, isOpen, parsedDur)
+                            onSaveSettings(title, parsedFee, bkash, nagad, isOpen, parsedDur, prizePool)
                         },
                         icon = Icons.Default.Save,
                         modifier = Modifier.fillMaxWidth(),
@@ -773,350 +1602,9 @@ fun TournamentSettingsTab(
     }
 }
 
-@Composable
-fun EditRulesAdminTab(
-    rules: TournamentRules,
-    onSaveAndBroadcast: (TournamentRules) -> Unit
-) {
-    var matchDuration by remember(rules) { mutableStateOf(rules.matchDuration) }
-    var extraTimePk by remember(rules) { mutableStateOf(rules.extraTimePk) }
-    var substitutions by remember(rules) { mutableStateOf(rules.substitutions) }
-    var rematchRule by remember(rules) { mutableStateOf(rules.rematchRule) }
-    var walkoverGrace by remember(rules) { mutableStateOf(rules.walkoverGrace) }
-
-    var matchSettingsDetails by remember(rules) { mutableStateOf(rules.matchSettingsDetails) }
-    var squadFairPlayDetails by remember(rules) { mutableStateOf(rules.squadFairPlayDetails) }
-    var networkDisputesDetails by remember(rules) { mutableStateOf(rules.networkDisputesDetails) }
-    var scoreReportingDetails by remember(rules) { mutableStateOf(rules.scoreReportingDetails) }
-    var punctualityConductDetails by remember(rules) { mutableStateOf(rules.punctualityConductDetails) }
-    var organizerContact by remember(rules) { mutableStateOf(rules.organizerContact) }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            CyberGlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                borderColor = StatusPurple.copy(alpha = 0.5f),
-                backgroundColor = Slate900
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "TOURNAMENT RULES & REGULATIONS",
-                                color = Color.White,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp
-                            )
-                            Text(
-                                text = "Firestore doc: settings/rules • Real-time broadcast to all players",
-                                color = NeonCyanBright,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "QUICK BADGES (10 Mins, ET/PK ON, 5 Subs, 15-min rematch rule, 10-min walkover grace)",
-                        color = Slate400,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Row 1: Duration & Extra Time
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = matchDuration,
-                            onValueChange = { matchDuration = it },
-                            label = { Text("Match Duration (e.g. 10 Mins)", color = Slate400) },
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
-                        )
-                        OutlinedTextField(
-                            value = extraTimePk,
-                            onValueChange = { extraTimePk = it },
-                            label = { Text("Extra Time & PK (e.g. ET/PK ON)", color = Slate400) },
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Row 2: Subs & Rematch Rule
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = substitutions,
-                            onValueChange = { substitutions = it },
-                            label = { Text("Substitutions (e.g. 5 Subs)", color = Slate400) },
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
-                        )
-                        OutlinedTextField(
-                            value = rematchRule,
-                            onValueChange = { rematchRule = it },
-                            label = { Text("Rematch Rule (e.g. 15-min rematch rule)", color = Slate400) },
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Row 3: Walkover Grace & Organizer Contact
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = walkoverGrace,
-                            onValueChange = { walkoverGrace = it },
-                            label = { Text("Walkover Grace (e.g. 10-min walkover grace)", color = Slate400) },
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
-                        )
-                        OutlinedTextField(
-                            value = organizerContact,
-                            onValueChange = { organizerContact = it },
-                            label = { Text("Organizer WhatsApp / Contact", color = Slate400) },
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = StatusPurple,
-                                unfocusedBorderColor = Slate700
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Live Badges Preview Bar
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Slate950,
-                        border = BorderStroke(1.dp, Slate800),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Text(
-                                text = "LIVE BADGES PREVIEW (SHOWN TO PLAYERS):",
-                                color = Slate400,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                AdminBadgeChip(text = matchDuration, color = NeonCyanBright, modifier = Modifier.weight(1f))
-                                AdminBadgeChip(text = extraTimePk, color = StatusEmerald, modifier = Modifier.weight(1f))
-                                AdminBadgeChip(text = substitutions, color = StatusPurple, modifier = Modifier.weight(1f))
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                AdminBadgeChip(text = rematchRule, color = StatusAmber, modifier = Modifier.weight(1f))
-                                AdminBadgeChip(text = walkoverGrace, color = StatusRose, modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    Text(
-                        text = "DETAILED REGULATION CLAUSES (2-COLUMN CARDS)",
-                        color = Slate400,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = matchSettingsDetails,
-                        onValueChange = { matchSettingsDetails = it },
-                        label = { Text("Match Settings & Time Clause", color = Slate400) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = squadFairPlayDetails,
-                        onValueChange = { squadFairPlayDetails = it },
-                        label = { Text("Squad & Fair Play Clause", color = Slate400) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = networkDisputesDetails,
-                        onValueChange = { networkDisputesDetails = it },
-                        label = { Text("Network Disconnections & Lag Clause", color = Slate400) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = scoreReportingDetails,
-                        onValueChange = { scoreReportingDetails = it },
-                        label = { Text("Score Reporting & Screenshot Proof Clause", color = Slate400) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = punctualityConductDetails,
-                        onValueChange = { punctualityConductDetails = it },
-                        label = { Text("Punctuality, Walkover & Conduct Clause", color = Slate400) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = StatusPurple,
-                            unfocusedBorderColor = Slate700
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    CyberButton(
-                        text = "SAVE & BROADCAST",
-                        onClick = {
-                            val updated = rules.copy(
-                                matchDuration = matchDuration.trim(),
-                                extraTimePk = extraTimePk.trim(),
-                                substitutions = substitutions.trim(),
-                                rematchRule = rematchRule.trim(),
-                                walkoverGrace = walkoverGrace.trim(),
-                                matchSettingsDetails = matchSettingsDetails.trim(),
-                                squadFairPlayDetails = squadFairPlayDetails.trim(),
-                                networkDisputesDetails = networkDisputesDetails.trim(),
-                                scoreReportingDetails = scoreReportingDetails.trim(),
-                                punctualityConductDetails = punctualityConductDetails.trim(),
-                                organizerContact = organizerContact.trim()
-                            )
-                            onSaveAndBroadcast(updated)
-                        },
-                        icon = Icons.AutoMirrored.Filled.Send,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("save_broadcast_rules_btn")
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdminBadgeChip(
-    text: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = color.copy(alpha = 0.15f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.5f)),
-        modifier = modifier
-    ) {
-        Box(
-            modifier = Modifier.padding(vertical = 4.dp, horizontal = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = color,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                maxLines = 1
-            )
-        }
-    }
-}
-
+// -------------------------------------------------------------
+// TAB 5: STATS & OVERVIEW
+// -------------------------------------------------------------
 @Composable
 fun AdminStatsTab(
     registrations: List<TournamentRegistration>,
@@ -1187,16 +1675,16 @@ fun AdminStatsTab(
         item {
             CyberGlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                borderColor = GoldCrown,
+                borderColor = StatusEmerald.copy(alpha = 0.5f),
                 backgroundColor = Slate900
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "TOTAL PRIZE POOL / COLLECTED FEES", color = Slate400, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Total Collected Fees", color = Slate400, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "$totalCollected BDT",
-                        color = GoldCrown,
-                        fontSize = 28.sp,
+                        color = StatusEmerald,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Black
                     )
                     Text(
@@ -1228,6 +1716,512 @@ fun AdminMetricCard(
             Text(text = value, color = color, fontSize = 22.sp, fontWeight = FontWeight.Black)
         }
     }
+}
+
+// -------------------------------------------------------------
+// DIALOGS: ADD / EDIT / RESCHEDULE / ADVANCE
+// -------------------------------------------------------------
+
+@Composable
+fun AddParticipantDialog(
+    defaultFee: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (TournamentRegistration) -> Unit
+) {
+    var fullName by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("+8801") }
+    var inGameUsername by remember { mutableStateOf("") }
+    var inGameId by remember { mutableStateOf("") }
+    var paymentMethod by remember { mutableStateOf(PaymentMethod.bKash) }
+    var trxId by remember { mutableStateOf("MANUAL-${(1000..9999).random()}") }
+    var feeAmount by remember { mutableStateOf(defaultFee.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Slate900,
+        title = {
+            Text(text = "Add Participant Manually", color = Color.White, fontWeight = FontWeight.Black)
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { fullName = it },
+                    label = { Text("Full Legal Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone Number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = inGameUsername,
+                        onValueChange = { inGameUsername = it },
+                        label = { Text("eFootball Tag") },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                    )
+
+                    OutlinedTextField(
+                        value = inGameId,
+                        onValueChange = { inGameId = it },
+                        label = { Text("Owner ID") },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = trxId,
+                        onValueChange = { trxId = it },
+                        label = { Text("TrxID") },
+                        modifier = Modifier.weight(1.2f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                    )
+
+                    OutlinedTextField(
+                        value = feeAmount,
+                        onValueChange = { feeAmount = it },
+                        label = { Text("Fee (BDT)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(0.8f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                    )
+                }
+
+                // Payment Method Selector
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PaymentMethod.values().forEach { method ->
+                        val isSelected = paymentMethod == method
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { paymentMethod = method },
+                            label = { Text(method.name) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (fullName.isNotBlank()) {
+                        val reg = TournamentRegistration(
+                            id = "reg_${UUID.randomUUID().toString().take(8)}",
+                            userId = "user_manual_${UUID.randomUUID().toString().take(6)}",
+                            fullName = fullName.trim(),
+                            phoneNumber = phone.trim(),
+                            inGameUsername = inGameUsername.trim().ifEmpty { fullName.trim() },
+                            inGameId = inGameId.trim().ifEmpty { "${(100..999).random()}-${(100..999).random()}-${(100..999).random()}" },
+                            paymentMethod = paymentMethod,
+                            trxId = trxId.trim(),
+                            feeAmount = feeAmount.toIntOrNull() ?: defaultFee,
+                            status = RegistrationStatus.JOINED,
+                            submittedAt = System.currentTimeMillis()
+                        )
+                        onConfirm(reg)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Slate950)
+            ) {
+                Text("ADD TO ROSTER", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCEL", color = Slate400) }
+        }
+    )
+}
+
+@Composable
+fun EditParticipantDialog(
+    registration: TournamentRegistration,
+    onDismiss: () -> Unit,
+    onSave: (TournamentRegistration) -> Unit
+) {
+    var fullName by remember { mutableStateOf(registration.fullName) }
+    var phone by remember { mutableStateOf(registration.phoneNumber) }
+    var inGameUsername by remember { mutableStateOf(registration.inGameUsername) }
+    var inGameId by remember { mutableStateOf(registration.inGameId) }
+    var paymentMethod by remember { mutableStateOf(registration.paymentMethod) }
+    var trxId by remember { mutableStateOf(registration.trxId) }
+    var feeAmount by remember { mutableStateOf(registration.feeAmount.toString()) }
+    var status by remember { mutableStateOf(registration.status) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Slate900,
+        title = {
+            Text(text = "Edit Participant Entry", color = Color.White, fontWeight = FontWeight.Black)
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { fullName = it },
+                    label = { Text("Full Legal Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = inGameUsername,
+                        onValueChange = { inGameUsername = it },
+                        label = { Text("eFootball Tag") },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    OutlinedTextField(
+                        value = inGameId,
+                        onValueChange = { inGameId = it },
+                        label = { Text("Owner ID") },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = trxId,
+                        onValueChange = { trxId = it },
+                        label = { Text("TrxID") },
+                        modifier = Modifier.weight(1.2f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+
+                    OutlinedTextField(
+                        value = feeAmount,
+                        onValueChange = { feeAmount = it },
+                        label = { Text("Fee (BDT)") },
+                        modifier = Modifier.weight(0.8f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = StatusPurple, unfocusedBorderColor = Slate700)
+                    )
+                }
+
+                // Status Chips
+                Text(text = "Registration Status:", color = Slate400, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RegistrationStatus.values().forEach { st ->
+                        val isSelected = status == st
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { status = st },
+                            label = { Text(st.name) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val updated = registration.copy(
+                        fullName = fullName.trim(),
+                        phoneNumber = phone.trim(),
+                        inGameUsername = inGameUsername.trim(),
+                        inGameId = inGameId.trim(),
+                        paymentMethod = paymentMethod,
+                        trxId = trxId.trim(),
+                        feeAmount = feeAmount.toIntOrNull() ?: registration.feeAmount,
+                        status = status
+                    )
+                    onSave(updated)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = StatusPurple)
+            ) {
+                Text("SAVE CHANGES", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCEL", color = Slate400) }
+        }
+    )
+}
+
+@Composable
+fun AddMatchFixtureDialog(
+    registrations: List<TournamentRegistration>,
+    onDismiss: () -> Unit,
+    onAdd: (TournamentMatch) -> Unit
+) {
+    var round by remember { mutableIntStateOf(1) }
+    var matchIndex by remember { mutableIntStateOf(1) }
+    var startTime by remember { mutableStateOf("08:00 PM (BST)") }
+    var p1Name by remember { mutableStateOf(registrations.firstOrNull()?.fullName ?: "Player 1") }
+    var p2Name by remember { mutableStateOf(registrations.drop(1).firstOrNull()?.fullName ?: "Player 2") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Slate900,
+        title = {
+            Text(text = "Create Match Fixture", color = Color.White, fontWeight = FontWeight.Black)
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = round.toString(),
+                        onValueChange = { round = it.toIntOrNull() ?: 1 },
+                        label = { Text("Round (1-4)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                    )
+
+                    OutlinedTextField(
+                        value = matchIndex.toString(),
+                        onValueChange = { matchIndex = it.toIntOrNull() ?: 1 },
+                        label = { Text("Match #") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                    )
+                }
+
+                OutlinedTextField(
+                    value = startTime,
+                    onValueChange = { startTime = it },
+                    label = { Text("Start Time") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                )
+
+                OutlinedTextField(
+                    value = p1Name,
+                    onValueChange = { p1Name = it },
+                    label = { Text("Player 1 Name / eFootball Tag") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                )
+
+                OutlinedTextField(
+                    value = p2Name,
+                    onValueChange = { p2Name = it },
+                    label = { Text("Player 2 Name / eFootball Tag") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val p1Reg = registrations.find { it.fullName.equals(p1Name, true) }
+                    val p2Reg = registrations.find { it.fullName.equals(p2Name, true) }
+
+                    val match = TournamentMatch(
+                        id = "match_${UUID.randomUUID().toString().take(8)}",
+                        tournamentId = "dhaka_efootball_2026",
+                        round = round,
+                        matchIndex = matchIndex,
+                        player1 = MatchPlayer(id = p1Reg?.userId ?: "p1_${UUID.randomUUID().toString().take(4)}", name = p1Name, inGameUsername = p1Reg?.inGameUsername ?: p1Name, inGameId = p1Reg?.inGameId ?: "ID-001"),
+                        player2 = MatchPlayer(id = p2Reg?.userId ?: "p2_${UUID.randomUUID().toString().take(4)}", name = p2Name, inGameUsername = p2Reg?.inGameUsername ?: p2Name, inGameId = p2Reg?.inGameId ?: "ID-002"),
+                        player1Score = 0,
+                        player2Score = 0,
+                        status = MatchStatus.SCHEDULED,
+                        startTime = startTime.trim(),
+                        winnerId = null
+                    )
+                    onAdd(match)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Slate950)
+            ) {
+                Text("ADD FIXTURE", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCEL", color = Slate400) }
+        }
+    )
+}
+
+@Composable
+fun RescheduleMatchDialog(
+    match: TournamentMatch,
+    onDismiss: () -> Unit,
+    onReschedule: (newTime: String, newRound: Int) -> Unit
+) {
+    var newTime by remember { mutableStateOf(match.startTime) }
+    var newRound by remember { mutableIntStateOf(match.round) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Slate900,
+        title = {
+            Text(text = "Reschedule Match", color = Color.White, fontWeight = FontWeight.Black)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "${match.player1?.name ?: "TBD"} vs ${match.player2?.name ?: "TBD"}",
+                    color = NeonCyanBright,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = newTime,
+                    onValueChange = { newTime = it },
+                    label = { Text("New Scheduled Start Time") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                )
+
+                OutlinedTextField(
+                    value = newRound.toString(),
+                    onValueChange = { newRound = it.toIntOrNull() ?: match.round },
+                    label = { Text("Round Number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Slate200, focusedBorderColor = NeonCyan, unfocusedBorderColor = Slate700)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onReschedule(newTime.trim(), newRound) },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Slate950)
+            ) {
+                Text("CONFIRM RESCHEDULE", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCEL", color = Slate400) }
+        }
+    )
+}
+
+@Composable
+fun AdvanceWinnerDialog(
+    match: TournamentMatch,
+    onDismiss: () -> Unit,
+    onAdvance: (winnerId: String, p1Score: Int, p2Score: Int) -> Unit
+) {
+    var selectedWinnerId by remember { mutableStateOf(match.player1?.id ?: "") }
+    var p1Score by remember { mutableIntStateOf(if (match.player1Score > 0) match.player1Score else 2) }
+    var p2Score by remember { mutableIntStateOf(match.player2Score) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Slate900,
+        title = {
+            Text(text = "Advance Winner to Next Round", color = Color.White, fontWeight = FontWeight.Black)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(
+                    text = "Select the match winner and enter final scores:",
+                    color = Slate400,
+                    fontSize = 12.sp
+                )
+
+                // Winner selector buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Player 1 option
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                selectedWinnerId = match.player1?.id ?: ""
+                                if (p1Score <= p2Score) p1Score = p2Score + 1
+                            }
+                            .border(1.dp, if (selectedWinnerId == match.player1?.id) StatusEmerald else Slate700, RoundedCornerShape(8.dp)),
+                        color = if (selectedWinnerId == match.player1?.id) StatusEmerald.copy(alpha = 0.2f) else Slate800
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = match.player1?.name ?: "P1", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+                            Text(text = "WINNER", color = if (selectedWinnerId == match.player1?.id) StatusEmerald else Slate500, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+
+                    // Player 2 option
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                selectedWinnerId = match.player2?.id ?: ""
+                                if (p2Score <= p1Score) p2Score = p1Score + 1
+                            }
+                            .border(1.dp, if (selectedWinnerId == match.player2?.id) StatusEmerald else Slate700, RoundedCornerShape(8.dp)),
+                        color = if (selectedWinnerId == match.player2?.id) StatusEmerald.copy(alpha = 0.2f) else Slate800
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = match.player2?.name ?: "P2", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+                            Text(text = "WINNER", color = if (selectedWinnerId == match.player2?.id) StatusEmerald else Slate500, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+                }
+
+                // Final Score controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "${match.player1?.name}: $p1Score", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row {
+                        IconButton(onClick = { if (p1Score > 0) p1Score-- }) { Icon(Icons.Default.Remove, contentDescription = null, tint = NeonCyanBright) }
+                        IconButton(onClick = { p1Score++ }) { Icon(Icons.Default.Add, contentDescription = null, tint = NeonCyanBright) }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "${match.player2?.name}: $p2Score", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row {
+                        IconButton(onClick = { if (p2Score > 0) p2Score-- }) { Icon(Icons.Default.Remove, contentDescription = null, tint = NeonCyanBright) }
+                        IconButton(onClick = { p2Score++ }) { Icon(Icons.Default.Add, contentDescription = null, tint = NeonCyanBright) }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onAdvance(selectedWinnerId, p1Score, p2Score) },
+                colors = ButtonDefaults.buttonColors(containerColor = StatusEmerald, contentColor = Slate950)
+            ) {
+                Text("ADVANCE WINNER", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCEL", color = Slate400) }
+        }
+    )
 }
 
 @Composable

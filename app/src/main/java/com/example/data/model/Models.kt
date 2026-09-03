@@ -34,6 +34,7 @@ data class UserProfile(
     val inGameId: String = "",
     val inGameUsername: String = "",
     val role: UserRole = UserRole.PLAYER,
+    val isEmailVerified: Boolean = true,
     val createdAt: Long = System.currentTimeMillis()
 )
 
@@ -78,8 +79,9 @@ data class TournamentMatch(
 
 data class TournamentInfo(
     val id: String = "dhaka_efootball_2026",
-    val title: String = "Dhaka eFootball Open Championship",
+    val title: String = "Dhaka eFootball Championship",
     val entryFee: Int = 100,
+    val prizePool: String = "15,000 BDT",
     val bkashNumber: String = "01904031478",
     val nagadNumber: String = "01904031478",
     val isRegistrationOpen: Boolean = true,

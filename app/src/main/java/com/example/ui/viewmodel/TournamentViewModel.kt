@@ -1,9 +1,11 @@
 package com.example.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AppNotification
 import com.example.data.model.MatchStatus
+import com.example.data.model.ORGANIZER_EMAIL
 import com.example.data.model.PaymentMethod
 import com.example.data.model.RegistrationStatus
 import com.example.data.model.TournamentInfo
@@ -13,6 +15,7 @@ import com.example.data.model.TournamentRules
 import com.example.data.model.UserProfile
 import com.example.data.model.UserRole
 import com.example.data.repository.FirebaseRepository
+import com.example.data.session.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,8 +25,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class TournamentViewModel(
-    private val repository: FirebaseRepository = FirebaseRepository()
-) : ViewModel() {
+    application: Application
+) : AndroidViewModel(application) {
+
+    private val sessionManager = SessionManager(application.applicationContext)
+    val repository: FirebaseRepository = FirebaseRepository().apply {
+        initSession(sessionManager)
+    }
 
     val currentUser: StateFlow<UserProfile?> = repository.currentUser
     val tournament: StateFlow<TournamentInfo> = repository.tournament
@@ -98,27 +106,122 @@ class TournamentViewModel(
         )
     }
 
-    fun switchRole(role: UserRole) {
-        repository.switchUserRole(role)
-        showSnackbar("Switched role to ${role.name}")
-    }
-
-    fun signInWithGoogle(
-        email: String = com.example.data.model.ORGANIZER_EMAIL,
-        fullName: String? = null
+    fun loginWithEmailPassword(
+        email: String,
+        pass: String,
+        isSignUp: Boolean,
+        fullName: String = "",
+        inGameUsername: String = "",
+        inGameId: String = "",
+        onSuccess: (UserProfile) -> Unit = {},
+        onError: (String) -> Unit = {}
     ) {
-        repository.signInWithGoogle(
+        repository.loginWithEmailPassword(
             email = email,
+            pass = pass,
+            isSignUp = isSignUp,
             fullName = fullName,
-            onSuccess = {
-                val isOrganizer = email.trim().equals(com.example.data.model.ORGANIZER_EMAIL, ignoreCase = true)
-                val roleName = if (isOrganizer) "ADMIN (Organizer Privileges Granted)" else "PLAYER (Participant Mode)"
-                showSnackbar("Signed in as $roleName")
+            inGameUsername = inGameUsername,
+            inGameId = inGameId,
+            onSuccess = { profile ->
+                val isAdmin = profile.email.trim().equals(ORGANIZER_EMAIL, ignoreCase = true)
+                showSnackbar("Welcome ${profile.fullName}! (${if (isAdmin) "Admin Host" else "Participant"})")
+                onSuccess(profile)
             },
             onError = { err ->
                 showSnackbar(err)
+                onError(err)
             }
         )
+    }
+
+    fun registerPlayer(
+        ign: String,
+        konamiId: String,
+        email: String,
+        pass: String,
+        phone: String,
+        onVerificationRequired: (userId: String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        repository.registerPlayer(
+            ign = ign,
+            konamiId = konamiId,
+            email = email,
+            pass = pass,
+            phone = phone,
+            onVerificationRequired = { userId ->
+                showSnackbar("Verification email sent to $email")
+                onVerificationRequired(userId)
+            },
+            onError = { err ->
+                showSnackbar(err)
+                onError(err)
+            }
+        )
+    }
+
+    fun checkEmailVerificationStatus(
+        userId: String,
+        ign: String,
+        konamiId: String,
+        email: String,
+        phone: String,
+        onVerified: (UserProfile) -> Unit,
+        onNotVerified: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        repository.checkEmailVerificationStatus(
+            userId = userId,
+            ign = ign,
+            konamiId = konamiId,
+            email = email,
+            phone = phone,
+            onVerified = { profile ->
+                showSnackbar("Email verified! Welcome ${profile.fullName}")
+                onVerified(profile)
+            },
+            onNotVerified = onNotVerified,
+            onError = { err ->
+                showSnackbar(err)
+                onError(err)
+            }
+        )
+    }
+
+    fun resendVerificationEmail(
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        repository.resendVerificationEmail(
+            onSuccess = {
+                showSnackbar("Verification email resent!")
+                onSuccess()
+            },
+            onError = { err ->
+                showSnackbar(err)
+                onError(err)
+            }
+        )
+    }
+
+    fun handleFirebaseUser(
+        firebaseUser: com.google.firebase.auth.FirebaseUser,
+        onSuccess: (UserProfile) -> Unit = {}
+    ) {
+        repository.handleFirebaseUser(
+            firebaseUser = firebaseUser,
+            onSuccess = { profile ->
+                val isAdmin = profile.email.trim().equals(ORGANIZER_EMAIL, ignoreCase = true)
+                showSnackbar("Welcome ${profile.fullName}! (${if (isAdmin) "Admin Host" else "Participant"})")
+                onSuccess(profile)
+            }
+        )
+    }
+
+    fun switchRole(role: UserRole) {
+        repository.switchUserRole(role)
+        showSnackbar("Switched role to ${role.name}")
     }
 
     fun logout() {
@@ -156,23 +259,40 @@ class TournamentViewModel(
         showSnackbar("Registration rejected.")
     }
 
+    fun updateRegistration(registration: TournamentRegistration) {
+        repository.updateRegistration(registration)
+        showSnackbar("Participant roster updated for ${registration.fullName}.")
+    }
+
+    fun deleteRegistration(regId: String) {
+        repository.deleteRegistration(regId)
+        showSnackbar("Player entry removed from tournament roster.")
+    }
+
+    fun addParticipant(registration: TournamentRegistration) {
+        repository.addParticipant(registration)
+        showSnackbar("Participant added to roster.")
+    }
+
     fun updateTournamentSettings(
         title: String,
         entryFee: Int,
+        prizePool: String,
         bkashNumber: String,
         nagadNumber: String,
         isRegistrationOpen: Boolean,
         matchDurationMinutes: Int
     ) {
         repository.updateTournamentSettings(
-            title,
-            entryFee,
-            bkashNumber,
-            nagadNumber,
-            isRegistrationOpen,
-            matchDurationMinutes
+            title = title,
+            entryFee = entryFee,
+            prizePool = prizePool,
+            bkashNumber = bkashNumber,
+            nagadNumber = nagadNumber,
+            isRegistrationOpen = isRegistrationOpen,
+            matchDurationMinutes = matchDurationMinutes
         )
-        showSnackbar("Tournament settings updated.")
+        showSnackbar("Tournament settings updated and synced to Firestore.")
     }
 
     fun generateBracket() {
@@ -183,6 +303,36 @@ class TournamentViewModel(
             showSnackbar("1v1 Bracket generated with $count players!")
             _selectedRoundFilter.value = 1
         }
+    }
+
+    fun resetBracket() {
+        repository.resetBracket()
+        showSnackbar("Tournament bracket has been reset.")
+    }
+
+    fun addMatchFixture(match: TournamentMatch) {
+        repository.addMatchFixture(match)
+        showSnackbar("Match fixture added to schedule.")
+    }
+
+    fun updateMatchFixture(match: TournamentMatch) {
+        repository.updateMatchFixture(match)
+        showSnackbar("Match fixture updated.")
+    }
+
+    fun deleteMatchFixture(matchId: String) {
+        repository.deleteMatchFixture(matchId)
+        showSnackbar("Match fixture removed.")
+    }
+
+    fun rescheduleMatch(matchId: String, newStartTime: String, newRound: Int) {
+        repository.rescheduleMatch(matchId, newStartTime, newRound)
+        showSnackbar("Match rescheduled to $newStartTime (Round $newRound).")
+    }
+
+    fun advancePlayer(matchId: String, winnerId: String, p1Score: Int, p2Score: Int) {
+        repository.advancePlayer(matchId, winnerId, p1Score, p2Score)
+        showSnackbar("Winner advanced to next bracket round!")
     }
 
     fun updateMatchScore(matchId: String, p1Score: Int, p2Score: Int, status: MatchStatus) {

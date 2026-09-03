@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Dhaka eFootball Open"
+rootProject.name = "Dhaka eFootball"
 
 include(":app")

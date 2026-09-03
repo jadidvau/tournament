@@ -26,3 +26,12 @@ val StatusRose = Color(0xFFF43F5E)
 val StatusPurple = Color(0xFF8B5CF6)
 val GoldCrown = Color(0xFFFFD700)
 
+// Aliases for compatibility
+val StatusGold = GoldCrown
+val StatusGreen = StatusEmerald
+val CyanBorder = CyanDark
+val Slate500 = Slate600
+val Slate300 = Slate400
+val DarkBgCard = Slate900
+
+
